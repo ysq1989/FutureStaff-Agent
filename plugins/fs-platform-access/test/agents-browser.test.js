@@ -19,7 +19,7 @@ test('real browser selects persistent agents, isolates sessions, preserves files
   const dir=await mkdtemp(path.join(os.tmpdir(),'fs-agent-ui-'))
   const identity={environment:'dev',tenantId:'10000000-0000-4000-8000-000000000001',userId:'20000000-0000-4000-8000-000000000001'}
   const store=new AgentWorkspaceStore(path.join(dir,'member'),identity)
-  const cards=[1,2].map(n=>({agentId:`30000000-0000-4000-8000-00000000000${n}`,name:`助手${n}`,description:`知识${n}`,available:true,unavailableReason:null}))
+  const cards=[1,2].map(n=>({agentId:`30000000-0000-4000-8000-00000000000${n}`,name:`助手${n}`,description:`知识${n} ${'Long role description for a persistent agent. '.repeat(12)}`,available:true,unavailableReason:null}))
   const bundle=await build({stdin:{resolveDir:root,loader:'tsx',contents:`
     import React,{useState,useSyncExternalStore}from'react';import{createRoot}from'react-dom/client';
     import{createAgentBrowser,createAgentPicker}from'./plugins/fs-platform-access/src/client/agents.tsx';
@@ -64,6 +64,11 @@ test('real browser selects persistent agents, isolates sessions, preserves files
     await cdp.call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`})
     const waitFor=async(fn)=>{for(let i=0;i<80;i++){if(await cdp.evaluate(fn,null))return;await sleep(50)}assert.fail('browser state did not settle')}
     await waitFor(()=>document.querySelectorAll('.fs-agent-choice').length===2)
+    await cdp.evaluate(()=>{document.querySelector('.fs-agent-list').style.maxHeight='140px';return true},null)
+    assert.equal(await cdp.evaluate(()=>[...document.querySelectorAll('.fs-agent-choice')].every(button=>{
+      const box=button.getBoundingClientRect(),description=button.querySelector('small').getBoundingClientRect()
+      return description.bottom<=box.bottom&&description.height<=parseFloat(getComputedStyle(button.querySelector('small')).lineHeight)*2+1
+    }),null),true)
     await cdp.evaluate(()=>document.querySelectorAll('.fs-agent-choice')[0].click()||true,null)
     await waitFor(()=>window.fixture.get().sessions.ids.length===1)
     let native=await cdp.evaluate(()=>window.fixture.get(),null)

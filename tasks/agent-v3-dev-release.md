@@ -1,7 +1,19 @@
 # Agent 3.0 DEV release
 
-2026-10-11. User authorized scoped commit/push, DEV-only Platform API deployment and updating the local Agent client for review. No global stable feed, PROD, schema migration or business-data mutation is included.
+2026-10-12. User authorized scoped commit/push, DEV-only Platform API deployment and updating the local Agent client for review. No global stable feed, PROD, schema migration or business-data mutation is included.
 
-Platform target: platform-api only, version 1.12.14. Client: 3.0.0-rc.1 DEV preview. Preserve existing local production Profile and custom system/GEO/UI work. The clean source candidate excludes unrelated unstaged changes; its variant manifest hashes the candidate sources, not the larger development working tree. Local custom overlays, if retained, must have separate backup/hash receipts and must not be described as a clean global distribution.
+Platform source: `8816bf6c6985cdd93c796f96ecfb9b471ff99853`. Client base: `51b585d8b78aa1a87ae155ca76bd91128a3ea8c4`, version `3.0.0-rc.1`.
 
-Status: preparing clean candidate validation; deployment and live selection acceptance pending.
+DEV platform-api `1.12.14` deployed under tag `deploy/platform/dev-platform-agent-v3-1.12.14-20261012`, CAS generation 49. Image `futurestaff/platform-backend:dev-platform-agent-v3-1.12.14-20261012`, digest `sha256:599c4b837b609902d412c39b0a44cc0baac118b5df74ae1053b52fb71a3c5c2e`. Public health reports ok / 1.12.14; anonymous agent catalog returns 401; desktop providers returns 200. Before/after container inventory confirms only DEV platform-api changed. Schema unchanged; previous image retained for rollback.
+
+Clean source candidate validation: full client `npm run check` passed (Stable 1107, Beta 1032, each 13 existing conditional skips; root 64); Platform focused tests 78 passed / one cross-repo consumer skip, Ruff passed. Earlier full development-tree Platform run had 79 passes including that consumer.
+
+Local desktop update preserves the production Profile and uses isolated DEV desktop userData / harness under `%LOCALAPPDATA%/FutureStaff Agent/dev-preview-3.0`. The installed native app is 3.0.0-rc.1; login and subject selection exposed 10 authorized real agents. Selected ERP system help and cached its foundational snapshot. No global signed installer/update-feed publication is claimed.
+
+The initial clean plugin preview used the older committed blue appearance and omitted the user's existing local neutral UI customization. Restored the existing neutral renderer, keeping 3.0 selection; fixed long descriptions shrinking/overflowing in the Agent list. Native code and renderer overlays have separate hashes/backups and are not represented as a clean global distribution. Existing unrelated UI/system/GEO source remains uncommitted and preserved.
+
+Real first-message verification found native WorkspaceRegistry canonical paths differed from lexical paths under Windows app virtualization. Catalog, selection and Host binding now use the same canonical workspace path; linked directories and foreign paths remain rejected. Regression coverage includes a redirected root, foreign path rejection and linked-directory rejection. Final plugin test/build: development tree 177 passes; clean candidate 160 passes. Actual conversation completion awaits renewed DEV login after the verification session expired; do not mark this acceptance passed yet.
+
+Evidence root (local, ignored): `D:/项目/.codex-build/agent-v3-dev-20261011/`. Logs `client-final-check.log`, `clean-access-final-fix.log`, `access-final-fix.log`, server inventories; local backups/receipts `local-client/`, `ui-restoration/`, `canonical-path-fix/`. Screenshots and runtime projections are local evidence, never committed with account data. Rollback restores backed-up app code/profile plugin files and the original Profile selection, preserving all member data. Platform rollback must use the established isolated release controller and previous image.
+
+Status: DEV API and local client updated; UI regression corrected; authenticated conversation acceptance pending renewed login.

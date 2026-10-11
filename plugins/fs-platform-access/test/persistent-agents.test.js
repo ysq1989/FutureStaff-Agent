@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, mkdir, writeFile, symlink, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, mkdir, writeFile, symlink, rm } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { AgentWorkspaceStore, decodeAgentSnapshot, fetchAgentData } from '../lib/agents.js'
@@ -47,6 +47,7 @@ test('linked agent directory is rejected before writing',async()=>{
     await mkdir(path.join(root,'agents'))
     await symlink(outside,path.join(root,'agents',agentId),process.platform==='win32'?'junction':'dir')
     await assert.rejects(new AgentWorkspaceStore(root,identity).materialize(snapshot,new AbortController().signal))
+    await assert.rejects(new AgentWorkspaceStore(root,identity).workspacePath(agentId))
   }finally{await rm(root,{recursive:true,force:true})}
 })
 
@@ -57,6 +58,8 @@ test('first message binds the Host session cwd before sending and rejects render
     const directory=await store.materialize(snapshot,signal)
     assert.equal(await resolveSessionAgent(store,'legacy',path.join(root,'legacy')),undefined)
     assert.equal(await resolveSessionAgent(store,'missing',undefined),undefined)
+    assert.equal(await store.workspacePath(agentId),await realpath(path.join(directory,'workspace')))
+    assert.equal(await resolveSessionAgent(store,'foreign',path.join(root,'foreign',agentId,'workspace')),undefined)
     assert.deepEqual(await resolveSessionAgent(store,'first',path.join(directory,'workspace')),{agentId,version:snapshot.version})
     const other={...snapshot,agentId:'40000000-0000-4000-8000-000000000001'}
     const otherDirectory=await store.materialize(other,signal)
@@ -65,6 +68,18 @@ test('first message binds the Host session cwd before sending and rejects render
     assert.equal((await resolveSessionAgent(store,'first',path.join(directory,'workspace'))).version,snapshot.version)
     assert.equal((await resolveSessionAgent(store,'second',path.join(directory,'workspace'))).version,'b'.repeat(64))
   }finally{await rm(root,{recursive:true,force:true})}
+})
+
+test('Host canonical workspace path resolves a redirected root without trusting a renderer path',async()=>{
+  const canonical=path.resolve('canonical',agentId,'workspace')
+  const store=new AgentWorkspaceStore(path.resolve('redirected'),identity)
+  const bindings=[]
+  store.workspacePath=async requested=>{assert.equal(requested,agentId);return canonical}
+  store.bind=async(session,agent)=>{bindings.push({session,agent})}
+  store.binding=async()=>({agentId,version:snapshot.version})
+  assert.equal((await resolveSessionAgent(store,'canonical-session',canonical)).agentId,agentId)
+  assert.equal(await resolveSessionAgent(store,'untrusted-session',path.resolve('foreign',agentId,'workspace')),undefined)
+  assert.deepEqual(bindings,[{session:'canonical-session',agent:agentId}])
 })
 
 test('snapshot transport rejects foreign tenants, oversized bodies and aborted credentials',async()=>{

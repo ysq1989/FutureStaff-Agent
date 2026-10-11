@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { lstat, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, readFile, realpath, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { requireUuid } from './contracts.js'
 import { assertPlatformOrigin } from './environment.js'
@@ -82,6 +82,12 @@ async function atomicJson(file:string,value:unknown):Promise<void>{
 export class AgentWorkspaceStore {
   constructor(readonly root:string,readonly identity:WorkspaceIdentity){if(!path.isAbsolute(root))throw error();id(identity.tenantId);id(identity.userId)}
   directory(agentId:string):string{return path.join(this.root,'agents',id(agentId))}
+  /** Match the native registry's canonical paths, including Windows app virtualization. */
+  async workspacePath(agentId:string):Promise<string>{
+    const directory=path.join(this.directory(agentId),'workspace')
+    try{await existingTree(directory);return await realpath(directory)}
+    catch(e){if((e as NodeJS.ErrnoException).code==='ENOENT')return directory;throw e}
+  }
   async materialize(raw:AgentSnapshot,signal:AbortSignal):Promise<string>{
     const snapshot=decodeAgentSnapshot(raw);signal.throwIfAborted()
     const directory=this.directory(snapshot.agentId)

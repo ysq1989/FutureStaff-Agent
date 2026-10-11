@@ -7,11 +7,10 @@ import path from 'node:path'
 /** Session cwd comes from the Host SessionStore, never the renderer. */
 export async function resolveSessionAgent(store: AgentWorkspaceStore, sessionId: string, cwd: string | undefined) {
   if (!cwd || !path.isAbsolute(cwd)) return undefined
-  const relative = path.relative(path.join(store.root, 'agents'), cwd)
-  const parts = relative.split(path.sep)
-  if (parts.length !== 2 || parts[1] !== 'workspace') return undefined
-  const agentId = parts[0]!
-  if (path.resolve(cwd) !== path.resolve(store.directory(agentId), 'workspace')) return undefined
+  if (path.basename(cwd) !== 'workspace') return undefined
+  const agentId = path.basename(path.dirname(cwd))
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(agentId)) return undefined
+  if (path.resolve(cwd) !== path.resolve(await store.workspacePath(agentId))) return undefined
   await store.bind(sessionId, agentId)
   return store.binding(sessionId)
 }
@@ -42,7 +41,7 @@ export function mountAgents(ctx: Context, origin: string, identity: WorkspaceIde
         if(credentials.tenantId!==identity.tenantId||credentials.userId!==identity.userId)throw new Error('AGENT_IDENTITY_MISMATCH')
         if(suffix==='catalog'){
           const cards=await fetchAgentData(origin,credentials,undefined,fetcher) as AgentCard[]
-          return send(200,{items:cards.map(card=>({...card,path:`${store.directory(card.agentId)}/workspace`})),dataDirectory:root})
+          return send(200,{items:await Promise.all(cards.map(async card=>({...card,path:await store.workspacePath(card.agentId)}))),dataDirectory:root})
         }
         let raw='';for await(const chunk of request){raw+=chunk.toString();if(Buffer.byteLength(raw)>2048)throw new Error('AGENT_REQUEST_INVALID')}
         const body=JSON.parse(raw)
@@ -56,7 +55,7 @@ export function mountAgents(ctx: Context, origin: string, identity: WorkspaceIde
           if(!registry)throw new Error('AGENT_WORKSPACE_SERVICE_REQUIRED')
           await registry.create(path.join(directory,'workspace'),snapshot.name)
           credentials.signal.throwIfAborted()
-          return send(200,{agentId:snapshot.agentId,name:snapshot.name,path:`${directory}/workspace`,version:snapshot.version})
+          return send(200,{agentId:snapshot.agentId,name:snapshot.name,path:await store.workspacePath(snapshot.agentId),version:snapshot.version})
         }
         if(Object.keys(body).sort().join()!=='agentId,sessionId'||typeof body.agentId!=='string'||typeof body.sessionId!=='string')throw new Error('AGENT_REQUEST_INVALID')
         // Recheck current platform visibility before accepting a persistent binding.
