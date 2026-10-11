@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "reviewedAt": "2026-10-11",
+  "review": "docs/specs/persistent-agents-v3-acceptance.md",
+  "files": [
+    {
+      "path": "electron-runtime.ts",
+      "reason": "FutureStaff signed update confirmation uses its branded dialog; upstream Beta retains its original update UI.",
+      "stableSha256": "791287f127a9052f63919c667848749d148489518dc9a5b4a0e943ac1a908e5d",
+      "betaSha256": "497ba5cdb9e40582aa037fc195004ddab694d334ebe3ce4cdb5fc19d160f1c8c"
+    },
+    {
+      "path": "electron-shell-generation.ts",
+      "reason": "FutureStaff owns authenticated system views, exact module windows, renderer capability scopes and Windows workbench sizing.",
+      "stableSha256": "0065a3eae98dcc4471accd48ffcdfe1123dccd2af9e044f13fd0dd9180406255",
+      "betaSha256": "5c930513cdc488893aabfffce7804dce66610f25df8c89da4823ec4693b68762"
+    },
+    {
+      "path": "module-window.ts",
+      "reason": "Product-only controlled local Douyin module window; Beta has no FutureStaff module launcher.",
+      "stableSha256": "ce94a84a98f5614ce1df98c965a71bcee85e40eb2706c1ee47317ed2e965b62f",
+      "betaSha256": null
+    },
+    {
+      "path": "native-ui/desktop-dialog.html",
+      "reason": "FutureStaff product title; CSP and native dialog carrier remain constrained.",
+      "stableSha256": "958f5c99bb86c0701c855ef2d86c1b12988e4c661f1c571a6ddd6ab1b425016e",
+      "betaSha256": "355d7df5387606288a641f21dfd70b724de24dd9d060319e8507100347bf7121"
+    },
+    {
+      "path": "native-ui/desktop-dialog/App.tsx",
+      "reason": "Product update dialog presentation; other native dialog paths stay shared.",
+      "stableSha256": "e32f5807307930b1471e423b1988fa2cb6151d26f7bbf8dd6b0bf4bc1f55fb3c",
+      "betaSha256": "9840f7df64fc744540be46a3d768cec2fab0246f1842f3824172e298dc059381"
+    },
+    {
+      "path": "native-ui/desktop-dialog/UpdateDialog.tsx",
+      "reason": "Product-only branded update confirmation with safe Later focus and original response indexes.",
+      "stableSha256": "c40362a992a83ce2af39e47e9d70ba44523e8e805202f6826ef7f66f3cbd54f6",
+      "betaSha256": null
+    },
+    {
+      "path": "native-ui/desktop-dialog/update-dialog.css",
+      "reason": "Product-only update-dialog styling with reduced-motion support.",
+      "stableSha256": "54ede755e1ec179402f32d09a316765bccefc0d652aafe1a78ece16801177f69",
+      "betaSha256": null
+    },
+    {
+      "path": "native-ui/vite-env.d.ts",
+      "reason": "Type declarations for product CSS and controlled build-time SVG assets.",
+      "stableSha256": "ae5344993f806d53c51771b1a14be846304ad1ef9a83ca6d026f0d392aadcb60",
+      "betaSha256": "2afd6908ba91ae5f91136af3ffcf6adef90f410b1391ba9ef765a84fb808af84"
+    },
+    {
+      "path": "startup-recovery-window.ts",
+      "reason": "FutureStaff product icon; recovery behavior remains shared.",
+      "stableSha256": "f592b602ac742e574489ef2a7ba565fac2e738f6fe9a078620445cf00619ac6b",
+      "betaSha256": "981a15fe2e6a529e01039c08308cb34602a9ad63bac49f70fdeb35b91859df6c"
+    }
+  ]
+}

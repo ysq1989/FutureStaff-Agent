@@ -120,7 +120,12 @@ test('real browser renders desktop/mobile views and loads evidence through the l
       await cdp.call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/shell?scheme=${scheme}`})
       for(let i=0;i<50;i++){if(await cdp.evaluate(()=>!!document.querySelector('[aria-label="打开抖音获客"]'),null))break;await sleep(100)}
       assert.deepEqual(await cdp.evaluate(()=>[...document.querySelectorAll('[aria-label="打开抖音获客"],[aria-label="打开线上选品中心"]')].map(e=>({background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color})),null),Array(2).fill({background:'rgba(0, 0, 0, 0)',color:scheme==='dark'?'rgb(177, 178, 189)':'rgb(71, 85, 105)'}))
-      assert.equal(await cdp.evaluate(()=>getComputedStyle(document.querySelector('.dshDesktopSidebarSurface')).backgroundColor,null),scheme==='dark'?'rgb(17, 18, 21)':'rgb(255, 255, 255)')
+      const sidebar = await cdp.evaluate(()=>{
+        const probe=document.createElement('span');probe.style.backgroundColor='var(--fs-sidebar-bg)';document.body.append(probe)
+        const expected=getComputedStyle(probe).backgroundColor;probe.remove()
+        return {actual:getComputedStyle(document.querySelector('.dshDesktopSidebarSurface')).backgroundColor,expected}
+      },null)
+      assert.equal(sidebar.actual,sidebar.expected)
       await screenshot(`shell-${scheme}`)
       assert.equal(await cdp.evaluate(()=>{const launcher=document.querySelector('[aria-label="打开线上选品中心"]');launcher.setAttribute('aria-label','打开选品中心');return getComputedStyle(launcher).backgroundColor},null),'rgba(0, 0, 0, 0)')
     }

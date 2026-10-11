@@ -472,7 +472,7 @@ describe('desktop direct bundle management', () => {
     rmSync(options.statePath)
     const target = join(root, 'real-state.json')
     writeFileSync(target, JSON.stringify({ version: 1, profiles: [] }))
-    symlinkSync(target, options.statePath)
+    symlinkSync(target, options.statePath, process.platform === 'win32' ? 'junction' : 'file')
     expect(() => readDesktopDisabledBundles(options.statePath, 'desktop')).toThrow('regular file')
 
     rmSync(options.statePath)

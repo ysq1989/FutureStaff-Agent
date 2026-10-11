@@ -2,7 +2,8 @@ import { platformOrigin, type PlatformEnvironment } from './environment.js'
 import { mountMarket } from './market-host.js'
 import { roleRoot } from './market.js'
 import { RememberedLogin } from './remembered-login.js'
-import { DesktopLoginWorkspace, readWorkspaceIdentity, workspaceName } from './workspace.js'
+import { DesktopLoginWorkspace, readWorkspaceIdentity, workspaceName, workspaceDirectory } from './workspace.js'
+import { mountAgents } from './agent-host.js'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
@@ -123,6 +124,10 @@ function mountDevLogin(ctx: Context, environment: PlatformEnvironment): void {
     pkce: new PlatformPkceTransaction({ environment }), api, vault,
   })
   const initialized = access.restore()
+  const agents = identity ? mountAgents(ctx, origin, identity, workspaceDirectory(identity), async () => {
+    await initialized
+    return access.authorizeTemplates()
+  }) : undefined
   if (identity) mountMarket(ctx, origin, identity, roleRoot(identity), async () => {
     await initialized
     return access.authorizeTemplates()
@@ -147,7 +152,8 @@ function mountDevLogin(ctx: Context, environment: PlatformEnvironment): void {
   }))
   if (typeof ctx.inject === 'function') ctx.inject(['llm'], llmCtx => {
     const adapter = new FutureStaffChatAdapter(async modelId => { await initialized; return access.authorizeChat(modelId) }, secrets, globalThis.fetch, origin,
-      async () => { await initialized; return access.getSnapshot().models })
+      async () => { await initialized; return access.getSnapshot().models },
+      agents ? agents.resolveBinding : undefined)
     llmCtx.effect(() => {
       const unregister = llmCtx.llm.registerAdapter(['futurestaff'], adapter)
       return () => { adapter.dispose(); unregister() }

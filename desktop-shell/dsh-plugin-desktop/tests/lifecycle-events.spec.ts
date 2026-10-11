@@ -355,7 +355,7 @@ describe('desktop lifecycle events', () => {
     const linkedFileTarget = join(linkedFileDir, 'target.jsonl')
     mkdirSync(join(linkedFileDir, 'lifecycle-events'))
     writeFileSync(linkedFileTarget, '')
-    symlinkSync(linkedFileTarget, desktopLifecycleEvidencePath(linkedFileDir), 'file')
+    symlinkSync(linkedFileTarget, desktopLifecycleEvidencePath(linkedFileDir), process.platform === 'win32' ? 'junction' : 'file')
     const linkedFileLogger = createLogger()
     const linkedFile = createDesktopLifecycleRecorder({
       userDataDir: linkedFileDir,

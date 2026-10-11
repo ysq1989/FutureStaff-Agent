@@ -387,7 +387,7 @@ describe('Desktop Setup Wizard settings document', () => {
     const outside = join(temporaryDirectory(), 'outside.yaml')
     const path = join(root, 'settings.yaml')
     writeFileSync(outside, 'outside: true\n', { mode: 0o600 })
-    symlinkSync(outside, path)
+    symlinkSync(outside, path, process.platform === 'win32' ? 'junction' : 'file')
 
     expect(() => readDesktopSetupWizardSettings(path)).toThrow('regular file')
     await expect(updateDesktopSetupWizardSettings(path, values())).rejects.toThrow('regular file')

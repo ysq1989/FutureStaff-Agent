@@ -1,5 +1,11 @@
 # Current task
 
+Agent 3.0 DEV release: see tasks/agent-v3-dev-release.md and tasks/persistent-agents-v3.md.
+User authorized scoped commit/push, DEV API deployment and local DEV client update on 2026-10-11.
+
+## Preserved earlier context
+
+
 GEO local desktop migration: see tasks/geo-local-desktop.md and
 docs/specs/geo-local-desktop-migration.md. User confirmed DSH login/models and
 a peer System entry beside Douyin acquisition. Implementation and isolated checks

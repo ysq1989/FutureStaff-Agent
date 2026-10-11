@@ -224,7 +224,7 @@ describe('Desktop Profile preferences', () => {
     const path = desktopProfilePreferencesStatePath(userData, profile)
     mkdirSync(stateDirectory(userData, profile), { recursive: true, mode: 0o700 })
     writeFileSync(outside, 'outside\n', { mode: 0o600 })
-    symlinkSync(outside, path)
+    symlinkSync(outside, path, process.platform === 'win32' ? 'junction' : 'file')
 
     expect(() => readDesktopProfilePreferences(userData, profile)).toThrow('regular file')
     await expect(writeDesktopProfilePreferences(userData, profile, PREFERENCES, RECORDED_AT))

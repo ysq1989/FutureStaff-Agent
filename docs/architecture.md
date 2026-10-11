@@ -1,5 +1,11 @@
 # Architecture
 
+## Persistent Agent entry in 3.0
+
+The desktop selects an authorized existing platform Agent, then creates native Harness sessions in that Agent's persistent workspace. Platform identity, shared knowledge and memory remain authoritative. Host credentials never enter the renderer; each model request rechecks Agent access and configuration version on the server. The Host derives session binding from the live SessionStore cwd, rather than accepting renderer ownership claims.
+
+New Windows installations place shell state, Harness profiles and member data beneath `%LOCALAPPDATA%/FutureStaff Agent/`. Existing shell state, `DSH_HOME`, profiles and legacy member directories are preserved. Reference files live at `workspace/.futurestaff-agent/definition/`; local edits do not update shared memory or grant executable capabilities. See [ADR-0019](adr/0019-persistent-agents-and-local-data-root.md) and the [3.0 specification](specs/persistent-agents-v3.md).
+
 ```text
 Browser -> official DSH Web bundle -> FutureStaff Profile overlay
                                       |-> fs-core identity service

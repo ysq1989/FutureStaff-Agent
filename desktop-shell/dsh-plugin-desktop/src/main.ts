@@ -2,6 +2,7 @@
 
 import { app, crashReporter, safeStorage, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
+import { configureFutureStaffDataRoot } from './futurestaff-data-root.ts'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -136,7 +137,7 @@ import {
 } from './setup-wizard-settings.ts'
 import type { DesktopSetupWizardResult } from './setup-wizard-contract.ts'
 import { DesktopSetupWizardWindow } from './setup-wizard-window.ts'
-import { futureStaffDesktopPolicy } from './futurestaff-desktop-policy.ts'
+import { FUTURESTAFF_MANAGED_DESKTOP, futureStaffDesktopPolicy } from './futurestaff-desktop-policy.ts'
 import { ProfileCreateWindow } from './profile-create-window.ts'
 import { DesktopProfileSelectionWindow } from './profile-selection-window.ts'
 import { showDesktopDialog } from './desktop-dialog-window.ts'
@@ -1583,6 +1584,7 @@ async function start(): Promise<void> {
 
 async function run(): Promise<void> {
   app.setName(PRODUCT_NAME)
+  if (FUTURESTAFF_MANAGED_DESKTOP) configureFutureStaffDataRoot(app)
   if (process.argv.includes('--export-diagnostics')) {
     try {
       await app.whenReady()

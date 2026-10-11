@@ -59,6 +59,7 @@ export class FutureStaffChatAdapter extends LlmAdapter {
     private readonly fetcher: typeof fetch = fetch,
     private readonly origin: string = 'https://dev.fsstory.net',
     private readonly catalog: () => Promise<readonly PlatformModel[]> = async () => [],
+    private readonly agentBinding?: (sessionId: string) => Promise<{ agentId: string; version: string } | undefined>,
   ) { super(); assertPlatformOrigin(origin) }
 
   dispose(): void { this.#lifetime.abort() }
@@ -130,7 +131,16 @@ export class FutureStaffChatAdapter extends LlmAdapter {
       if (error instanceof LlmError) throw error
       throw new LlmError('无法保存此会话的账号归属，请检查本机受保护存储。', 'FUTURESTAFF_STORAGE')
     }
+    let agent: { agentId: string; version: string } | undefined
+    try {
+      agent = this.agentBinding && options.sessionId ? await this.agentBinding(options.sessionId) : undefined
+    } catch {
+      credentials.signal.throwIfAborted()
+      throw new LlmError('智能体会话归属无法确认，请重新选择智能体并新建会话。', 'FUTURESTAFF_AGENT_BINDING')
+    }
+    if (this.agentBinding && !agent) throw new LlmError('请先选择智能体，再创建会话；历史会话保留在旧工作区。', 'FUTURESTAFF_AGENT_REQUIRED')
     const body = JSON.stringify({ requestId: randomUUID(), modelId: credentials.modelId,
+      ...(agent ? { agentId: agent.agentId, agentVersion: agent.version } : {}),
       messages: messages(options), tools: options.tools ?? [], maxTokens: Math.min(options.maxTokens ?? 4096, 8192) })
     if (Buffer.byteLength(body) > 512 * 1024) throw new LlmError('会话内容过长，请新建会话。', 'FUTURESTAFF_LIMIT')
     const abort = new AbortController()
@@ -149,8 +159,10 @@ export class FutureStaffChatAdapter extends LlmAdapter {
       if (!response.ok) {
         await response.body?.cancel()
         if (response.status === 401) throw new LlmError('平台登录已失效，请在设置 → FutureStaff 重新登录。', 'FUTURESTAFF_AUTH')
-        if (response.status === 403) throw new LlmError('当前租户无权使用所选模型，请联系管理员，或退出后重新选择租户登录。', 'FUTURESTAFF_MODEL_ACCESS')
+        if (response.status === 403) throw new LlmError(agent ? '当前主体无权使用所选智能体或模型，请检查平台授权。' : '当前租户无权使用所选模型，请联系管理员，或退出后重新选择租户登录。', 'FUTURESTAFF_MODEL_ACCESS')
+        if (response.status === 413 && agent) throw new LlmError('智能体知识或会话超过当前上下文限制，请减少知识文件或新建会话。', 'FUTURESTAFF_AGENT_LIMIT')
         if (response.status === 429) throw new LlmError('平台聊天请求过于频繁或额度已用尽，请稍后重试。', 'FUTURESTAFF_CHAT_LIMIT')
+        if (response.status === 409 && agent) throw new LlmError('智能体配置已更新，请重新选择智能体并新建会话。原会话记录仍保留。', 'FUTURESTAFF_AGENT_VERSION')
         throw unavailable()
       }
       if (response.headers.get('x-futurestaff-chat-contract') !== '0.1.0'

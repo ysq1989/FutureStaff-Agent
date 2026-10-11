@@ -279,7 +279,7 @@ describe('desktop Host pnpm runtime', () => {
     const target = join(root, 'target')
     const stateDir = join(root, 'runtime')
     mkdirSync(target)
-    symlinkSync(target, stateDir)
+    symlinkSync(target, stateDir, process.platform === 'win32' ? 'junction' : 'dir')
     const environment: NodeJS.ProcessEnv = { PATH: '/usr/bin' }
 
     expect(() => installDesktopPnpmRuntime(options(stateDir, 'linux', environment)))
@@ -297,7 +297,7 @@ describe('desktop Host pnpm runtime', () => {
     mkdirSync(nodeBinDir, { recursive: true })
     const target = join(root, 'outside')
     writeFileSync(target, 'outside')
-    symlinkSync(target, join(pathDir, 'pnpm'))
+    symlinkSync(target, join(pathDir, 'pnpm'), process.platform === 'win32' ? 'junction' : 'file')
     const environment: NodeJS.ProcessEnv = { PATH: '/usr/bin' }
 
     expect(() => installDesktopPnpmRuntime(options(stateDir, 'linux', environment)))
@@ -334,7 +334,7 @@ describe('desktop Host pnpm runtime', () => {
     mkdirSync(pathDir, { recursive: true })
     const target = join(root, 'outside')
     writeFileSync(target, 'outside')
-    symlinkSync(target, join(pathDir, 'dsh'))
+    symlinkSync(target, join(pathDir, 'dsh'), process.platform === 'win32' ? 'junction' : 'file')
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
 
     const installation = installDesktopPnpmRuntime(options(stateDir, 'linux', { PATH: '/usr/bin' }))

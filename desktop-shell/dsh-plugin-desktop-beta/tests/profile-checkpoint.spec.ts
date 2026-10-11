@@ -372,7 +372,7 @@ describe('Desktop profile health checkpoints', () => {
     const symlink = fixture()
     unlinkSync(join(symlink.profile, 'cordis.patch.yml'))
     writeFileSync(join(symlink.root, 'outside.yml'), 'outside\n')
-    symlinkSync(join(symlink.root, 'outside.yml'), join(symlink.profile, 'cordis.patch.yml'))
+    symlinkSync(join(symlink.root, 'outside.yml'), join(symlink.profile, 'cordis.patch.yml'), process.platform === 'win32' ? 'junction' : 'file')
     expect(() => symlink.checkpoint.captureHealthy()).toThrow('regular file')
 
     const oversized = fixture({ maxFileBytes: { 'package.json': 4 } })
@@ -381,7 +381,7 @@ describe('Desktop profile health checkpoints', () => {
     const globalSymlink = fixture()
     unlinkSync(join(globalSymlink.home, 'settings.yaml'))
     writeFileSync(join(globalSymlink.root, 'outside-settings.yml'), 'outside\n')
-    symlinkSync(join(globalSymlink.root, 'outside-settings.yml'), join(globalSymlink.home, 'settings.yaml'))
+    symlinkSync(join(globalSymlink.root, 'outside-settings.yml'), join(globalSymlink.home, 'settings.yaml'), process.platform === 'win32' ? 'junction' : 'file')
     expect(() => globalSymlink.checkpoint.captureHealthy()).toThrow('regular file')
 
     const oversizedSettings = fixture({ maxFileBytes: { 'home/settings.yaml': 4 } })

@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
+import { checkDeclaredDesktopDifferences } from './desktop-variant-contract.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const stableRoot = join(root, 'dsh-plugin-desktop', 'src')
@@ -18,6 +19,7 @@ const allowedDifferences = new Set([
   'desktop-terminal.ts',
   'diagnostic-export-worker.ts',
   'futurestaff-profile.ts',
+  'futurestaff-data-root.ts',
   'index.ts',
   'main.ts',
   'native-dialog-copy.ts',
@@ -47,9 +49,11 @@ function files(directory, base = directory) {
 }
 
 const sharedPaths = new Set([...files(stableRoot), ...files(betaRoot)])
+const declaredPaths = checkDeclaredDesktopDifferences(stableRoot,betaRoot,
+  JSON.parse(readFileSync(join(root,'futurestaff-desktop-variants.json'),'utf8')))
 const differences = []
 for (const path of [...sharedPaths].sort()) {
-  if (allowedDifferences.has(path)) continue
+  if (allowedDifferences.has(path) || declaredPaths.has(path)) continue
   let stable
   let beta
   try { stable = readFileSync(join(stableRoot, path)) } catch { stable = undefined }
@@ -61,4 +65,4 @@ if (differences.length > 0) {
   throw new Error(`Desktop variant source drift is not declared:\n${differences.map(path => `- src/${path}`).join('\n')}`)
 }
 
-process.stdout.write(`verify-desktop-variants: ${String(sharedPaths.size - allowedDifferences.size)} shared source files are aligned\n`)
+process.stdout.write(`verify-desktop-variants: ${String(sharedPaths.size - allowedDifferences.size - declaredPaths.size)} shared source files aligned; ${declaredPaths.size} product differences match reviewed hashes\n`)

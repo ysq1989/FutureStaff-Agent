@@ -19,6 +19,7 @@ export { SystemPages, SystemMain } from './system-pages.js'
 import { watchSlotComponents } from './slot-components.js'
 import { LoginPreferences } from '../login-preferences.js'
 import { AgentMarketSection } from './market.js'
+import { createAgentBrowser, createAgentPicker } from './agents.js'
 import type { RememberedLoginHint } from '../remembered-login.js'
 
 const DEV_ROUTE_PREFIX = '/_futurestaff/platform-dev'
@@ -416,7 +417,7 @@ type BrandedConversationProps = Record<string, unknown> & { t: (key: string, ...
 export function brandConversation(original: ComponentType<BrandedConversationProps>) {
   return function FutureStaffConversation(props: BrandedConversationProps) {
     return createElement(original, { ...props, t: (key: string, ...args: unknown[]) =>
-      key === 'hero.headline' ? 'FutureStaff Agent' : key === 'hero.preview' ? '' : props.t(key, ...args) })
+      key === 'hero.headline' ? 'FutureStaff Agent' : key === 'hero.preview' ? '' : key === 'hero.chooseWorkspace' ? '选择智能体' : props.t(key, ...args) })
   }
 }
 
@@ -468,6 +469,12 @@ export function apply(ctx: ClientContext): void {
   // workspace on logout/tenant changes, including while the gate renders null.
   const controller = new PlatformDevClientController()
   const pages = new SystemPages()
+  ctx.slots.inject('sidebar.workspaces', () => watchSlotComponents(ctx.slots, 'sidebar.workspaces',
+    entry => (entry.options.priority ?? 0) === 0,
+    component => createAgentBrowser(controller, component as Parameters<typeof createAgentBrowser>[1])))
+  ctx.slots.inject('conversation.hero.workspace', () => watchSlotComponents(ctx.slots, 'conversation.hero.workspace',
+    entry => (entry.options.priority ?? 0) === 0,
+    () => createAgentPicker(controller)))
   if (typeof ctx.provide === 'function') ctx.provide('platformClientSession', controller)
   if (typeof ctx.provide === 'function') ctx.provide('platformSystemPages', pages)
   ctx.slots.inject('sidebar', () => watchSlotComponents(ctx.slots, 'sidebar',

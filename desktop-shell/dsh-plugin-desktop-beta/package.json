@@ -109,9 +109,9 @@
     }
   },
   "scripts": {
-    "build": "node scripts/generate-mac-app-icon.mjs && node scripts/generate-tray-icons.mjs && node scripts/clean.mjs && tsdown && vite build --config vite.native-ui.config.ts && tsc -p tsconfig.json --emitDeclarationOnly && tsc -p tsconfig.client.json --emitDeclarationOnly",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.native-ui.json --noEmit && tsc -p tsconfig.tests.json --noEmit && tsc -p tsconfig.tests.client.json --noEmit",
-    "test": "vitest run",
+    "build": "node scripts/generate-mac-app-icon.mjs && node scripts/generate-tray-icons.mjs && node scripts/clean.mjs && node ../scripts/run-node-tool.mjs tsdown && node ../scripts/run-node-tool.mjs vite build --config vite.native-ui.config.ts && node ../scripts/run-node-tool.mjs tsc -p tsconfig.json --emitDeclarationOnly && node ../scripts/run-node-tool.mjs tsc -p tsconfig.client.json --emitDeclarationOnly",
+    "typecheck": "node ../scripts/run-node-tool.mjs tsc -p tsconfig.json --noEmit && node ../scripts/run-node-tool.mjs tsc -p tsconfig.client.json --noEmit && node ../scripts/run-node-tool.mjs tsc -p tsconfig.native-ui.json --noEmit && node ../scripts/run-node-tool.mjs tsc -p tsconfig.tests.json --noEmit && node ../scripts/run-node-tool.mjs tsc -p tsconfig.tests.client.json --noEmit",
+    "test": "node ../scripts/run-node-tool.mjs vitest run",
     "verify:closure": "node --test scripts/runtime-closure.spec.mjs && node scripts/verify-runtime-closure.mjs",
     "verify:cli": "node scripts/verify-cli-runtime.mjs",
     "verify:loader": "node scripts/verify-loader-boot.mjs",

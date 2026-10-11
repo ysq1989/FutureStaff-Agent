@@ -1,3 +1,7 @@
+## Agent 3.0 本地实现切片 — 2026-10-11（未发布）
+
+平台已有智能体目录/知识快照、桌面智能体入口、原生工作区命名、多会话持久归属及服务端上下文接入完成。新 Windows 数据根统一 shell/Profile/成员工作数据，旧目录和显式配置保留。开发版本 3.0.0-rc.1，无 Schema 变更，无提交/推送/部署/真实迁移。相关客户端 176、平台 79、发行 Profile 64 项通过，真实浏览器与类型/构建通过。继续开发后，Stable 1116、Beta 1032 项通过，各 13 项原有条件跳过；差异/Unicode 工具门禁 7 项、完整布局与运行检查通过。本地开发切片完成，整包发行和线上验收尚未执行；详见 docs/specs/persistent-agents-v3-acceptance.md。
+
 ## Blue/white sidebar and update dialog 2.0.21 — published 2026-10-09
 
 New Session belongs to the Session tab and is hidden on Menu; blue/white sidebar and branded update-ready modal. Primary action styling separated from safe Later focus/cancel; existing signed feed/cache recheck preserved. Source 8ca21cc61010cfbced14f0733bf25c123cafed86. Clean access 139 and desktop 1097 tests passed (13 existing skips), all build/type/closure and two Profile checks passed. Native assets/CSP, New Session placement, packaged Electron imports and 59 references verified. Signed live feed/full HTTPS installer: 130857106 bytes; SHA-256 08315a7c51147b30a9053ad787420ef8b43b5332c545d9b5badc94970ba5a972. Rollback 2.0.20. Local four UI files backed up/updated with custom Host preserved. User restart/update acceptance pending; new prompt appears after installation. Details: tasks/update-sidebar-ui-polish.md.

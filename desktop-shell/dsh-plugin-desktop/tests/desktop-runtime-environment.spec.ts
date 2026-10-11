@@ -54,6 +54,37 @@ afterEach(() => {
 })
 
 describe('desktop Host pnpm runtime', () => {
+  it.runIf(process.platform === 'win32')('runs the actual cmd shim from Unicode paths without changing the caller code page', () => {
+    const root = join(temporaryDirectory(), '测试目录')
+    mkdirSync(root)
+    const entry = join(root, '工具入口.mjs')
+    writeFileSync(entry, 'process.stdout.write(JSON.stringify({args:process.argv.slice(2),runAsNode:process.env.ELECTRON_RUN_AS_NODE})+"\\n");if(process.argv.includes("--fail"))process.exitCode=7')
+    const environment = { ...process.env }
+    const installation = installDesktopPnpmRuntime({
+      ...options(join(root, 'runtime'), 'win32', environment),
+      appExecutable: process.execPath, pnpmBinPath: entry,
+    })
+    try {
+      const command = 'chcp & call pnpm --probe & chcp'
+      const result = spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', command], {
+        env: environment, encoding: 'utf8', windowsHide: true,
+      })
+      expect(result.status, result.stderr).toBe(0)
+      const lines = result.stdout.trim().split(/\r?\n/u)
+      const output = lines.find(line => line.startsWith('{'))
+      expect(output, result.stderr).toBeDefined()
+      const child = JSON.parse(output!)
+      expect(child.args).toContain('--probe')
+      expect(child.runAsNode).toBeUndefined()
+      const originalCodePage = lines[0]?.match(/\d+$/u)?.[0]
+      expect(originalCodePage).toBeDefined()
+      expect(lines.at(-1)?.match(/\d+$/u)?.[0]).toBe(originalCodePage)
+      const failed = spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', 'pnpm --fail'], {
+        env: environment, encoding: 'utf8', windowsHide: true,
+      })
+      expect(failed.status, failed.stderr).toBe(7)
+    } finally { installation.dispose() }
+  })
   it.each(['darwin', 'linux'] as const)('creates a pnpm-only public PATH on %s', (platform) => {
     const stateDir = join(temporaryDirectory(), 'runtime state')
     const environment: NodeJS.ProcessEnv = {
@@ -279,7 +310,7 @@ describe('desktop Host pnpm runtime', () => {
     const target = join(root, 'target')
     const stateDir = join(root, 'runtime')
     mkdirSync(target)
-    symlinkSync(target, stateDir)
+    symlinkSync(target, stateDir, process.platform === 'win32' ? 'junction' : 'dir')
     const environment: NodeJS.ProcessEnv = { PATH: '/usr/bin' }
 
     expect(() => installDesktopPnpmRuntime(options(stateDir, 'linux', environment)))
@@ -297,7 +328,7 @@ describe('desktop Host pnpm runtime', () => {
     mkdirSync(nodeBinDir, { recursive: true })
     const target = join(root, 'outside')
     writeFileSync(target, 'outside')
-    symlinkSync(target, join(pathDir, 'pnpm'))
+    symlinkSync(target, join(pathDir, 'pnpm'), process.platform === 'win32' ? 'junction' : 'file')
     const environment: NodeJS.ProcessEnv = { PATH: '/usr/bin' }
 
     expect(() => installDesktopPnpmRuntime(options(stateDir, 'linux', environment)))
@@ -334,7 +365,7 @@ describe('desktop Host pnpm runtime', () => {
     mkdirSync(pathDir, { recursive: true })
     const target = join(root, 'outside')
     writeFileSync(target, 'outside')
-    symlinkSync(target, join(pathDir, 'dsh'))
+    symlinkSync(target, join(pathDir, 'dsh'), process.platform === 'win32' ? 'junction' : 'file')
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
 
     const installation = installDesktopPnpmRuntime(options(stateDir, 'linux', { PATH: '/usr/bin' }))

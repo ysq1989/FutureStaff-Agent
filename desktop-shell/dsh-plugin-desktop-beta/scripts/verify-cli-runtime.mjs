@@ -166,7 +166,12 @@ function runFlatProfileDshEntry() {
   const linkedAppBootPackage = join(root, 'node_modules', '@deepseek-ai', 'dsh-app-boot')
   const linkedAtomicWritePackage = join(root, 'node_modules', '@deepseek-ai', 'dsh-atomic-write')
   const linkedDshPackage = join(root, 'node_modules', '@deepseek-ai', 'dsh')
+  const environment = { ...cleanEnvironment(), DSH_HOME: join(root, 'harness-home') }
+  let installation
   try {
+    installation = installDesktopPnpmRuntime({ platform: process.platform,
+      appExecutable: electronPath, pnpmBinPath: pnpmCli, electronVersion,
+      stateDir: join(root, 'runtime'), environment })
     mkdirSync(join(root, 'node_modules', '@deepseek-ai'), { recursive: true })
     cpSync(fileURLToPath(new URL('lib/', packageRoot)), join(desktopPackage, 'lib'), { recursive: true })
     cpSync(fileURLToPath(new URL('package.json', packageRoot)), join(desktopPackage, 'package.json'))
@@ -179,9 +184,10 @@ function runFlatProfileDshEntry() {
       join(desktopPackage, 'lib', 'desktop-cli.js'),
       ['plugin', '--help'],
       undefined,
-      { DSH_DESKTOP_DEFAULT_PROFILE: 'desktop' },
+      { ...environment, DSH_DESKTOP_DEFAULT_PROFILE: 'desktop' },
     )
   } finally {
+    installation?.dispose()
     rmSync(root, { recursive: true, force: true })
   }
 }

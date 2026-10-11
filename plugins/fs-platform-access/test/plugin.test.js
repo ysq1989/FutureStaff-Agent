@@ -106,7 +106,7 @@ test('client registers Settings access and a mandatory login gate', () => {
 
   applyClient({ slots })
 
-  assert.deepEqual(slotNames, ['sidebar', 'sidebar.brand.mark', 'sidebar.brand.name', 'conversation.hero.brand.mark', 'conversation', 'conversation.hero.agentPreset', 'conversation.session.header.actions', 'settings.section', 'conversation.chat.node', 'settings.section', 'settings.section', 'shell.overlay'])
+  assert.deepEqual(slotNames, ['sidebar.workspaces', 'conversation.hero.workspace', 'sidebar', 'sidebar.brand.mark', 'sidebar.brand.name', 'conversation.hero.brand.mark', 'conversation', 'conversation.hero.agentPreset', 'conversation.session.header.actions', 'settings.section', 'conversation.chat.node', 'settings.section', 'settings.section', 'shell.overlay'])
   assert.deepEqual(registrations, [
     { name: 'sidebar.brand.mark', priority: -100 },
     { name: 'sidebar.brand.name', priority: -100 },
@@ -189,6 +189,9 @@ test('desktop Host mounts one exact loopback callback and persists a fake DEV ex
     const url = new URL(input)
     const meta = { contractVersion: '0.1.1', simulated: false }
     const tenantId = '10000000-0000-4000-8000-000000000001'
+    if (url.pathname === '/desktop/v1/auth/refresh') return Response.json({
+      session: { accessToken: 'private-access-token-with-entropy', refreshToken: 'private-refresh-token-with-entropy', tokenType: 'Bearer', expiresIn: 900, audience: 'futurestaff-agent-pc-dev', activeTenantId: tenantId }, meta,
+    })
     if (url.pathname === '/desktop/v1/auth/callback') return new Response(JSON.stringify({
       session: { accessToken: 'private-access-token-with-entropy', refreshToken: 'private-refresh-token-with-entropy', tokenType: 'Bearer', expiresIn: 900, audience: 'futurestaff-agent-pc-dev', activeTenantId: tenantId },
       user: { userId: '20000000-0000-4000-8000-000000000001', displayName: '测试用户' }, meta,

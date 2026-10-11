@@ -291,7 +291,7 @@ describe('Desktop Setup Wizard state', () => {
       mode: 0o700,
     })
     writeFileSync(outside, 'outside\n', { mode: 0o600 })
-    symlinkSync(outside, statePath)
+    symlinkSync(outside, statePath, process.platform === 'win32' ? 'junction' : 'file')
 
     expect(() => readDesktopSetupWizardState(userData, profile)).toThrow('regular file')
     await expect(recordSetup(userData, profile, 'completed')).rejects.toThrow('regular file')

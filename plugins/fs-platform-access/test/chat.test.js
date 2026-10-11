@@ -23,6 +23,24 @@ function setup(fetcher = async () => response([{ type: 'text', text: '您好' },
   return { adapter, secrets, session, setSession: value => { session = value } }
 }
 
+test('managed Agent binding is mandatory and sent as metadata rather than renderer-authored instructions', async () => {
+  const bench = setup()
+  let calls = 0
+  const binding = { agentId: '30000000-0000-4000-8000-000000000001', version: 'a'.repeat(64) }
+  const adapter = new FutureStaffChatAdapter(async () => credentials(), bench.secrets, async (_url, init) => {
+    calls++
+    const body = JSON.parse(init.body)
+    assert.equal(body.agentId, binding.agentId)
+    assert.equal(body.agentVersion, binding.version)
+    return response([done])
+  }, 'https://dev.fsstory.net', async () => [], async () => binding)
+  await collect(adapter.stream(options()))
+  assert.equal(calls, 1)
+  const denied = new FutureStaffChatAdapter(async () => credentials(), bench.secrets,
+    () => { throw new Error('must not call') }, 'https://dev.fsstory.net', async () => [], async () => undefined)
+  await assert.rejects(collect(denied.stream(options())), /选择智能体/)
+})
+
 test('Host streams into DSH blocks with fixed endpoint and Host-only authentication', async () => {
   const bench = setup(async (url, init) => {
     assert.equal(url, 'https://dev.fsstory.net/desktop/v1/chat')

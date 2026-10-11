@@ -1,11 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { cp, lstat, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import os from 'node:os'
 import { readFileSync } from 'node:fs'
 import { requireUuid, type DesktopSession, type User } from './contracts.js'
 import { platformOrigin, type PlatformEnvironment } from './environment.js'
 import { PlatformSessionVault, type PlatformProtectedSecrets } from './session-vault.js'
+import { compatibleMemberDirectory } from './data-root.js'
 
 export interface WorkspaceIdentity { environment: PlatformEnvironment; tenantId: string; userId: string }
 export interface LoginWorkspace {
@@ -27,8 +27,9 @@ export function workspaceName(identity: WorkspaceIdentity): string {
   const value = workspaceIdentity(identity.environment, identity.tenantId, identity.userId)
   return `fs-${value.environment}-${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`
 }
-export function workspaceDirectory(identity: WorkspaceIdentity, root = path.join(os.homedir(), '.futurestaff', 'workspaces')): string {
+export function workspaceDirectory(identity: WorkspaceIdentity, root?: string): string {
   const value = workspaceIdentity(identity.environment, identity.tenantId, identity.userId)
+  if (root === undefined) return compatibleMemberDirectory(value)
   if (!path.isAbsolute(root)) throw new Error('WORKSPACE_ROOT_INVALID')
   return path.join(root, value.environment, value.tenantId, 'users', value.userId)
 }

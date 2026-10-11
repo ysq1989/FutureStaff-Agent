@@ -245,9 +245,13 @@ function windowsNodeShim(appExecutable: string, clearEnvironmentUrl: string): st
   return [
     '@echo off',
     'setlocal DisableDelayedExpansion',
+    'for /f "tokens=2 delims=:" %%C in (\'chcp\') do set "_DSH_PREVIOUS_CODE_PAGE=%%C"',
+    'chcp 65001 >nul',
     `set "${RUN_AS_NODE}=1"`,
     `${quoteBatchWord(appExecutable)} --import ${quoteBatchWord(clearEnvironmentUrl)} %*`,
-    'exit /b %errorlevel%',
+    'set "_DSH_RUNTIME_EXIT_CODE=%errorlevel%"',
+    'if defined _DSH_PREVIOUS_CODE_PAGE chcp %_DSH_PREVIOUS_CODE_PAGE% >nul',
+    'exit /b %_DSH_RUNTIME_EXIT_CODE%',
     '',
   ].join('\r\n')
 }
@@ -262,6 +266,8 @@ function windowsPnpmShim(
   return [
     '@echo off',
     'setlocal DisableDelayedExpansion',
+    'for /f "tokens=2 delims=:" %%C in (\'chcp\') do set "_DSH_PREVIOUS_CODE_PAGE=%%C"',
+    'chcp 65001 >nul',
     `set "PATH=${escapeBatchSetValue(nodeBinDir)};%PATH%"`,
     `set "NODE=${escapeBatchSetValue(nodeShimPath)}"`,
     `set "${RUN_AS_NODE}=1"`,
@@ -269,7 +275,9 @@ function windowsPnpmShim(
     `set "npm_config_target=${escapeBatchSetValue(options.electronVersion)}"`,
     `set "npm_config_disturl=${ELECTRON_HEADERS_URL}"`,
     `${quoteBatchWord(options.appExecutable)} --import ${quoteBatchWord(clearEnvironmentUrl)} ${quoteBatchWord(options.pnpmBinPath)} ${PNPM_IGNORE_MINIMUM_RELEASE_AGE} %*`,
-    'exit /b %errorlevel%',
+    'set "_DSH_RUNTIME_EXIT_CODE=%errorlevel%"',
+    'if defined _DSH_PREVIOUS_CODE_PAGE chcp %_DSH_PREVIOUS_CODE_PAGE% >nul',
+    'exit /b %_DSH_RUNTIME_EXIT_CODE%',
     '',
   ].join('\r\n')
 }
@@ -279,11 +287,15 @@ function windowsDshShim(options: DesktopDshRuntimeOptions): string {
   return [
     '@echo off',
     'setlocal DisableDelayedExpansion',
+    'for /f "tokens=2 delims=:" %%C in (\'chcp\') do set "_DSH_PREVIOUS_CODE_PAGE=%%C"',
+    'chcp 65001 >nul',
     `set "${RUN_AS_NODE}=1"`,
     `set "${DEFAULT_PROFILE}=${escapeBatchSetValue(options.profileName)}"`,
     `set "${DSH_HOME}=${escapeBatchSetValue(options.homeDir)}"`,
     `${quoteBatchWord(options.appExecutable)} --expose-internals ${quoteBatchWord(options.dshBootstrapPath)} %*`,
-    'exit /b %errorlevel%',
+    'set "_DSH_RUNTIME_EXIT_CODE=%errorlevel%"',
+    'if defined _DSH_PREVIOUS_CODE_PAGE chcp %_DSH_PREVIOUS_CODE_PAGE% >nul',
+    'exit /b %_DSH_RUNTIME_EXIT_CODE%',
     '',
   ].join('\r\n')
 }

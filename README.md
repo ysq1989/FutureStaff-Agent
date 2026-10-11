@@ -1,5 +1,11 @@
 # FutureStaff Agent
 
+## Agent 3.0 升级（2026-10-11）
+
+开发版本 `3.0.0-rc.1`：从平台已授权的持久智能体开始对话，智能体下保留多次会话、知识与本机工作文件。新 Windows 安装的数据根为 `%LOCALAPPDATA%/FutureStaff Agent/`；已有数据路径保持兼容，不自动迁移。
+
+设计与边界见 [升级规格](docs/specs/persistent-agents-v3.md)、[ADR-0019](docs/adr/0019-persistent-agents-and-local-data-root.md) 和 [本地验收及发布条件](docs/specs/persistent-agents-v3-acceptance.md)。源码实现不代表服务器或安装版已更新。
+
 The GitHub repository was renamed from `ysq1989/futurestaff-dsh` to `ysq1989/FutureStaff-Agent` on 2026-10-10. For a new development computer, read [the development handoff](docs/development-handoff.md). Internal package and Profile names retain their existing identifiers.
 
 FutureStaff's upgrade-friendly extension layer for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). This repository does **not** fork or patch DSH Core. It composes the official Web bundles in a custom Profile and mounts out-of-tree plugins beside them.
