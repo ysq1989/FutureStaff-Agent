@@ -21,11 +21,14 @@ export async function api<T>(
   path: string,
   body?: unknown,
   extraHeaders: Record<string, string> = {},
+  signal?: AbortSignal,
 ): Promise<T> {
   const startedEpoch = epoch;
   const response = await fetch(`/_futurestaff/geo/api/geo/v1${path}`, {
     method: body === undefined ? "GET" : "POST",
     credentials: "same-origin",
+    ...(signal ? { signal } : {}),
+    ...(path === "/session" ? { cache: "no-store" as const } : {}),
     headers:
       body === undefined
         ? { ...extraHeaders, "x-futurestaff-geo": "1" }

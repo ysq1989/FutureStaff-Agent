@@ -83,6 +83,11 @@ export function dispatchEmbeddedMock(
     return { status: 200, body: { session: { accessToken: 'mock-access-valid-tenant-a-rotated', refreshToken: 'mock-refresh-valid-tenant-a-rotated', tokenType: 'Bearer', expiresIn: 900, audience: PLATFORM_CLIENT_ID, activeTenantId: TENANT_A }, meta } }
   }
   if (method === 'POST' && path === '/desktop/v1/auth/logout') return { status: 200, body: { ok: true, revocationEffectiveWithinSeconds: 60, meta } }
+  if (method === 'GET' && path === '/desktop/v1/profile') {
+    const auth = authorize(headers)
+    if (auth.error !== undefined) return auth.error
+    return { status: 200, body: { activeTenantId: auth.tenantId, user: { userId: '20000000-0000-4000-8000-000000000001', displayName: '模拟用户', email: 'demo.user@example.invalid' }, meta } }
+  }
   if ((method === 'GET' && path === '/desktop/v1/tenants') || (method === 'GET' && path === '/desktop/v1/apps')) {
     const auth = authorize(headers)
     if (auth.error !== undefined) return auth.error

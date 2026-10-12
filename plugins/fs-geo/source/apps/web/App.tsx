@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from "react";
+import { startProfileSync } from "./profileSync.mjs";
 import {
   IconBuilding,
   IconChartBar,
@@ -47,6 +48,19 @@ export function App() {
   const generation = useRef(0);
   const hadSession = useRef(false);
   const [session, setSession] = useState<Session | null>(null);
+  useEffect(() => {
+    if (!session) return;
+    const owner = { userId: session.userId, tenantId: session.tenantId };
+    return startProfileSync({
+      read: signal => api<{ data: Session }>("/session", undefined, {}, signal),
+      apply: ({ data }) => {
+        if (data.userId !== owner.userId || data.tenantId !== owner.tenantId) {
+          window.dispatchEvent(new Event("geo-session-invalid")); return;
+        }
+        setSession(current => current?.userId === owner.userId && current.tenantId === owner.tenantId ? data : current);
+      },
+    });
+  }, [session?.userId, session?.tenantId]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [view, setView] = useState("overview");

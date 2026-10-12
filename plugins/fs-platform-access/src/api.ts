@@ -183,6 +183,18 @@ abstract class PlatformApiClient {
     })
   }
 
+  async currentUser(accessToken: string, signal?: AbortSignal): Promise<{ readonly activeTenantId: string; readonly user: User }> {
+    const body = await this.request('/desktop/v1/profile', {
+      signal: signal ?? null, headers: this.authorization(accessToken), cache: 'no-store',
+    })
+    return this.decode(() => {
+      if (!isRecord(body)) throw new Error('invalid profile response')
+      assertKeys(body, ['activeTenantId', 'user', 'meta'])
+      this.meta(body.meta)
+      return Object.freeze({ activeTenantId: requireUuid(body, 'activeTenantId'), user: user(body.user) })
+    })
+  }
+
   async logout(refreshToken: string | undefined, signal?: AbortSignal): Promise<void> {
     const body = await this.request('/desktop/v1/auth/logout', {
       method: 'POST', signal: signal ?? null,

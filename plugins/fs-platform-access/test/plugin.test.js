@@ -6,7 +6,7 @@ import test from 'node:test'
 import { apply as applyClient, beginPlatformDevLogin } from '../lib/client/index.js'
 import { apply as applyHost } from '../lib/index.js'
 
-test('host registers only the six exact platform Mock bridge routes', () => {
+test('host registers only the seven exact platform Mock bridge routes including read-only profiles', () => {
   const registrations = []
   const ctx = {
     effect: register => { register() },
@@ -15,13 +15,14 @@ test('host registers only the six exact platform Mock bridge routes', () => {
 
   applyHost(ctx)
 
-  assert.equal(registrations.length, 6)
-  assert.deepEqual(registrations.map(item => item.kind), Array(6).fill('exact'))
+  assert.equal(registrations.length, 7)
+  assert.deepEqual(registrations.map(item => item.kind), Array(7).fill('exact'))
   assert.deepEqual(registrations.map(item => item.path).sort(), [
     '/_futurestaff/platform-mock/desktop/v1/apps',
     '/_futurestaff/platform-mock/desktop/v1/auth/callback',
     '/_futurestaff/platform-mock/desktop/v1/auth/logout',
     '/_futurestaff/platform-mock/desktop/v1/auth/refresh',
+    '/_futurestaff/platform-mock/desktop/v1/profile',
     '/_futurestaff/platform-mock/desktop/v1/tenants',
     '/_futurestaff/platform-mock/desktop/v1/tenants/switch',
   ])
@@ -196,6 +197,10 @@ test('desktop Host mounts one exact loopback callback and persists a fake DEV ex
       session: { accessToken: 'private-access-token-with-entropy', refreshToken: 'private-refresh-token-with-entropy', tokenType: 'Bearer', expiresIn: 900, audience: 'futurestaff-agent-pc-dev', activeTenantId: tenantId },
       user: { userId: '20000000-0000-4000-8000-000000000001', displayName: '测试用户' }, meta,
     }), { status: 200, headers: { 'content-type': 'application/json' } })
+    if (url.pathname === '/desktop/v1/profile') return new Response(JSON.stringify({
+      activeTenantId: tenantId,
+      user: { userId: '20000000-0000-4000-8000-000000000001', displayName: '测试用户', email: 'dev@example.invalid' }, meta,
+    }), { status: 200, headers: { 'content-type': 'application/json' } })
     if (url.pathname === '/desktop/v1/tenants') return new Response(JSON.stringify({
       activeTenantId: tenantId,
       items: [{ tenantId, displayName: '测试公司', slug: 'test-company', logoUrl: null, role: 'member' }], meta,
@@ -235,7 +240,7 @@ test('desktop Host mounts one exact loopback callback and persists a fake DEV ex
     provide: (name, value) => { if (name === 'platformDevLogin') loginService = value; return () => {} },
     webServer: { host: '127.0.0.1', port: 43821, register: route => { registrations.push(route); return () => {} } },
   })
-  assert.equal(registrations.length, 16)
+  assert.equal(registrations.length, 17)
   assert.ok(registrations.some(route => route.path === '/_futurestaff/platform-dev/auth/remembered'))
   assert.ok(registrations.some(route => route.path === '/_futurestaff/platform-dev/auth/tenant'))
   const startRoute = registrations.find(item => item.path === '/_futurestaff/platform-dev/login')

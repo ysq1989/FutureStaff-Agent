@@ -16,6 +16,7 @@ test('real Host routes authenticate saved passwords privately and reject unguard
       return Response.json({ session: { accessToken: 'fixture-access-token-with-entropy', refreshToken: 'fixture-refresh-token-with-entropy', tokenType: 'Bearer', expiresIn: 900, audience: 'futurestaff-agent-pc-dev', activeTenantId: tenantId }, user: { userId: '20000000-0000-4000-8000-000000000001', displayName: 'Fixture', email: null }, meta })
     }
     if (pathname === '/desktop/v1/tenants') return Response.json({ activeTenantId: tenantId, items: [{ tenantId, displayName: 'Fixture', slug: 'fixture', role: 'member', logoUrl: null }], meta })
+    if (pathname === '/desktop/v1/profile') return Response.json({ activeTenantId: tenantId, user: { userId: '20000000-0000-4000-8000-000000000001', displayName: 'Fixture', email: null }, meta })
     if (pathname === '/desktop/v1/models') return Response.json({ activeTenantId: tenantId, activeModelId: null, items: [], meta })
     if (pathname === '/desktop/v1/apps') return Response.json({ activeTenantId: tenantId, items: [], meta })
     throw Error('Unexpected fixture route')

@@ -382,7 +382,14 @@ function FutureStaffPlatformLoginGate({ controller }: PlatformAccessViewProps) {
       void controller.restoreRememberedLogin()
     }
     window.addEventListener('focus', synchronize)
-    return () => window.removeEventListener('focus', synchronize)
+    const foreground = (): void => { if (document.visibilityState !== 'hidden') void controller.synchronize().catch(() => {}) }
+    const timer = window.setInterval(foreground, 30000)
+    document.addEventListener('visibilitychange', foreground)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', synchronize)
+      document.removeEventListener('visibilitychange', foreground)
+    }
   }, [controller])
 
   useEffect(() => {

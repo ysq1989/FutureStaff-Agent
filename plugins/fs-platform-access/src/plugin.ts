@@ -27,6 +27,7 @@ const routes = new Map<string, ReadonlySet<string>>([
   ['/desktop/v1/auth/refresh', new Set(['POST'])],
   ['/desktop/v1/auth/logout', new Set(['POST'])],
   ['/desktop/v1/tenants', new Set(['GET'])],
+  ['/desktop/v1/profile', new Set(['GET'])],
   ['/desktop/v1/tenants/switch', new Set(['POST'])],
   ['/desktop/v1/apps', new Set(['GET'])],
 ])
@@ -225,7 +226,7 @@ function mountDevLogin(ctx: Context, environment: PlatformEnvironment): void {
         throw new Error('fs-platform-access: callback listener is unavailable.')
       }
     },
-    snapshot: async () => { await initialized; return access.getSnapshot() },
+    snapshot: async () => { await initialized; return access.synchronizeProfile() },
     loginWithPassword: (loginIdentifier: string, password: string, tenantId?: string, rememberPassword?: boolean) =>
       remembered.login({ loginIdentifier, password, ...(tenantId ? { tenantId } : {}) }, rememberPassword, input => access.login(input)),
     selectLoginTenant: (tenantId: string) => access.selectLoginTenant(tenantId),

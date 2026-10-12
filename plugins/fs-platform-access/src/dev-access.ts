@@ -41,6 +41,7 @@ export interface PlatformDevAccessSnapshot {
 }
 
 interface PlatformDevAccessApi {
+  currentUser?(accessToken: string, signal?: AbortSignal): Promise<{ readonly activeTenantId: string; readonly user: User }>
   authorizeGeoBrowser?(accessToken:string,input:import('./contracts.js').GeoBrowserAuthorization,signal?:AbortSignal):Promise<{redirectUrl:string}>
   authorizeModuleBrowser?(accessToken:string,appId:string,input:import('./contracts.js').GeoBrowserAuthorization,signal?:AbortSignal):Promise<{redirectUrl:string}>
   authorizeAiWeb?(accessToken:string,input:{codeChallenge:string;state:string},signal?:AbortSignal):Promise<{code:string;state:string}>
@@ -285,6 +286,7 @@ function failure(error: unknown, context: 'login' | 'session' = 'session'): Plat
 }
 
 export class PlatformDevAccessController {
+  #profileTimer: ReturnType<typeof setInterval> | undefined
   #snapshot = initialSnapshot
   #session: DesktopSession | undefined
   #user: User | undefined
@@ -302,10 +304,18 @@ export class PlatformDevAccessController {
     private readonly boundary: TenantIsolationBoundary,
     private readonly workspace?: LoginWorkspace,
     private readonly productHubAudience = 'futurestaff-product-hub-dev',
-  ) {}
+  ) {
+    if (api.currentUser) {
+      this.#profileTimer = setInterval(() => {
+        void this.#enqueue(() => this.#refreshProfile()).catch(() => { /* disposed controllers cannot publish */ })
+      }, 30000)
+      this.#profileTimer.unref?.()
+    }
+  }
 
   getSnapshot(): PlatformDevAccessSnapshot { return this.#snapshot }
   dispose(): void {
+    if (this.#profileTimer !== undefined) clearInterval(this.#profileTimer)
     this.#disposed = true
     this.#request.abort(); this.#generation++
     this.#clearPendingLogin(); this.#session = undefined; this.#user = undefined
@@ -317,6 +327,9 @@ export class PlatformDevAccessController {
   }
   restore(): Promise<PlatformDevAccessSnapshot> { return this.#enqueue(() => this.#restore()) }
   refresh(): Promise<PlatformDevAccessSnapshot> { return this.#enqueue(() => this.#refresh()) }
+  synchronizeProfile(): Promise<PlatformDevAccessSnapshot> {
+    return this.#enqueue(async () => { await this.#refreshProfile(); return this.#snapshot })
+  }
   switchTenant(tenantId: string): Promise<PlatformDevAccessSnapshot> {
     if (this.workspace) return Promise.reject(new Error('TENANT_RELOGIN_REQUIRED'))
     return this.#enqueue(() => this.#switchTenant(tenantId))
@@ -515,7 +528,7 @@ export class PlatformDevAccessController {
       if (!this.#isCurrent(operation.generation)) return this.#snapshot
       this.#session = result.session
       this.#accessExpiresAt = Date.now() + result.session.expiresIn * 1000
-      await this.#loadContext(operation.generation)
+      await this.#loadContext(operation.generation, true)
     } catch (error) {
       await this.#handleFailure(error, operation.generation)
     }
@@ -600,7 +613,8 @@ export class PlatformDevAccessController {
     return result
   }
 
-  async #loadContext(generation: number): Promise<void> {
+  async #loadContext(generation: number, allowUserChange = false): Promise<void> {
+    if (!await this.#readProfile(generation, allowUserChange)) return
     const session = this.#session
     const user = this.#user
     if (session === undefined || user === undefined) return
@@ -638,6 +652,35 @@ export class PlatformDevAccessController {
       models: models.items,
       activeModelId: models.activeModelId,
     })
+  }
+
+  async #readProfile(generation: number, allowUserChange = false): Promise<boolean> {
+    const session = this.#session, previous = this.#user
+    if (!session || !previous || !this.api.currentUser) return true
+    const signal = AbortSignal.any([this.#request.signal, AbortSignal.timeout(5000)])
+    const profile = await this.api.currentUser(session.accessToken, signal)
+    if (!this.#isCurrent(generation) || this.#disposed) return false
+    if (profile.activeTenantId !== session.activeTenantId || (!allowUserChange && profile.user.userId !== previous.userId)) {
+      throw new PlatformApiError('CONTRACT_MISMATCH', 'profile identity mismatch', false)
+    }
+    if (previous.displayName !== profile.user.displayName || previous.email !== profile.user.email || previous.userId !== profile.user.userId) {
+      this.#user = profile.user
+      await this.vault.save({ session, user: profile.user })
+    }
+    return this.#isCurrent(generation) && !this.#disposed
+  }
+
+  async #refreshProfile(): Promise<void> {
+    if (!['ready', 'no_apps'].includes(this.#snapshot.phase) || !this.#session || !this.#user) return
+    const generation = this.#generation
+    try {
+      await this.#renewIfNeeded()
+      if (await this.#readProfile(generation)) this.#publish({ ...this.#snapshot, user: this.#user })
+    } catch (error) {
+      if (error instanceof PlatformApiError && ['AUTHENTICATION_REQUIRED', 'TOKEN_EXPIRED', 'TOKEN_AUDIENCE_INVALID', 'CONTRACT_MISMATCH'].includes(error.code)) {
+        await this.#handleFailure(error, generation)
+      }
+    }
   }
 
   #beginOperation(): { readonly generation: number; readonly signal: AbortSignal } {
