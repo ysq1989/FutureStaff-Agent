@@ -41,6 +41,9 @@ export interface PlatformDevAccessSnapshot {
 }
 
 interface PlatformDevAccessApi {
+  authorizeGeoBrowser?(accessToken:string,input:import('./contracts.js').GeoBrowserAuthorization,signal?:AbortSignal):Promise<{redirectUrl:string}>
+  authorizeModuleBrowser?(accessToken:string,appId:string,input:import('./contracts.js').GeoBrowserAuthorization,signal?:AbortSignal):Promise<{redirectUrl:string}>
+  authorizeAiWeb?(accessToken:string,input:{codeChallenge:string;state:string},signal?:AbortSignal):Promise<{code:string;state:string}>
   loginWithPassword(input: PasswordLoginInput, signal?: AbortSignal): Promise<{
     readonly session: DesktopSession
     readonly user: User
@@ -291,6 +294,7 @@ export class PlatformDevAccessController {
   #pendingLogin: { session: DesktopSession; user: User; loginIdentifier: string; password: string; expiresAt: number } | undefined
   #pendingExpiry: NodeJS.Timeout | undefined
   #disposed = false
+  #accessExpiresAt = 0
 
   constructor(
     private readonly api: PlatformDevAccessApi,
@@ -324,10 +328,35 @@ export class PlatformDevAccessController {
   issueApplicationToken(appId: string): Promise<ApplicationTokenResult> {
     return this.#enqueue(() => this.#issueApplicationToken(appId))
   }
+  authorizeGeoBrowser(input:import('./contracts.js').GeoBrowserAuthorization):Promise<{redirectUrl:string}> {
+    return this.#enqueue(async()=>{
+      await this.#renewIfNeeded()
+      if(!this.#session||this.#snapshot.phase!=='ready'||this.#snapshot.activeTenantId!==this.#session.activeTenantId||!this.#snapshot.applications.some(a=>a.appId==='geo'&&a.tenantId===this.#session?.activeTenantId))throw Error('GEO_PERMISSION_REQUIRED');
+      if(!this.api.authorizeGeoBrowser)throw Error('GEO_BROWSER_AUTH_UNAVAILABLE');
+      return this.api.authorizeGeoBrowser(this.#session.accessToken,input,this.#request.signal);
+    });
+  }
+  authorizeModuleBrowser(appId: string, input: import('./contracts.js').GeoBrowserAuthorization): Promise<{redirectUrl:string}> {
+    return this.#enqueue(async () => {
+      await this.#renewIfNeeded()
+      if (!this.#session || this.#snapshot.phase !== 'ready' || !this.#snapshot.applications.some(app => app.appId === appId && app.tenantId === this.#session?.activeTenantId)) throw Error('APPLICATION_ACCESS_DENIED')
+      if (!this.api.authorizeModuleBrowser) throw Error('SYSTEM_SSO_UNAVAILABLE')
+      return this.api.authorizeModuleBrowser(this.#session.accessToken, appId, input, this.#request.signal)
+    })
+  }
+  authorizeAiWeb(input:{codeChallenge:string;state:string}):Promise<{code:string;state:string}> {
+    return this.#enqueue(async()=>{
+      await this.#renewIfNeeded()
+      if(!this.#session||this.#snapshot.phase!=='ready'||!this.#snapshot.applications.some(app=>app.appId==='futurestaff_ai'&&app.tenantId===this.#session?.activeTenantId))throw Error('APPLICATION_ACCESS_DENIED')
+      if(!this.api.authorizeAiWeb)throw Error('SYSTEM_SSO_UNAVAILABLE')
+      return this.api.authorizeAiWeb(this.#session.accessToken,input,this.#request.signal)
+    })
+  }
 
   /** Host-only access; intentionally absent from all renderer HTTP routes. */
   authorizeTemplates(): Promise<{ accessToken: string; tenantId: string; userId: string; signal: AbortSignal }> {
     return this.#enqueue(async () => {
+      await this.#renewIfNeeded()
       if (!this.#session || !this.#user || !['ready', 'no_apps'].includes(this.#snapshot.phase)
         || this.#snapshot.activeTenantId !== this.#session.activeTenantId) throw new Error('PLATFORM_LOGIN_REQUIRED')
       return { accessToken: this.#session.accessToken, tenantId: this.#session.activeTenantId,
@@ -337,6 +366,7 @@ export class PlatformDevAccessController {
 
   authorizeLocal(): Promise<{ tenantId: string; userId: string; signal: AbortSignal }> {
     return this.#enqueue(async () => {
+      await this.#renewIfNeeded()
       if (!this.#session || !this.#user || !['ready', 'no_apps'].includes(this.#snapshot.phase)
         || this.#snapshot.activeTenantId !== this.#session.activeTenantId) throw new Error('PLATFORM_LOGIN_REQUIRED')
       return { tenantId: this.#session.activeTenantId, userId: this.#user.userId, signal: this.#request.signal }
@@ -345,6 +375,7 @@ export class PlatformDevAccessController {
 
   authorizeChat(selectedModelId?: string): Promise<ChatCredentials> {
     return this.#enqueue(async () => {
+      await this.#renewIfNeeded()
       const modelId = selectedModelId ?? this.#snapshot.activeModelId
       if (this.#session === undefined || this.#user === undefined
         || !['ready', 'no_apps'].includes(this.#snapshot.phase) || !modelId
@@ -383,6 +414,7 @@ export class PlatformDevAccessController {
       await this.vault.save({ session: result.session, user: result.user })
       if (!this.#isCurrent(operation.generation)) return this.#snapshot
       this.#session = result.session
+      this.#accessExpiresAt = Date.now() + result.session.expiresIn * 1000
       this.#user = result.user
       await this.#loadContext(operation.generation)
     } catch (error) {
@@ -414,11 +446,14 @@ export class PlatformDevAccessController {
       if (this.workspace && !await this.workspace.enter(stored.session, stored.user)) return this.#snapshot
       if (!this.#isCurrent(operation.generation)) return this.#snapshot
       this.#session = stored.session
+      // Persisted expiresIn is a duration, not the remaining lifetime after restart.
+      this.#accessExpiresAt = 0
       this.#user = stored.user
       this.#publish({
         ...initialSnapshot, phase: 'loading', user: stored.user,
         activeTenantId: stored.session.activeTenantId,
       })
+      await this.#renewIfNeeded(true)
       await this.#loadContext(operation.generation)
     } catch (error) {
       await this.#handleFailure(error, operation.generation)
@@ -429,21 +464,36 @@ export class PlatformDevAccessController {
   async #refresh(): Promise<PlatformDevAccessSnapshot> {
     if (this.#snapshot.phase === 'selecting_tenant') return this.#snapshot
     if (this.#session === undefined || this.#user === undefined) return this.#restore()
-    const previous = this.#session
-    const operation = this.#beginOperation()
-    this.#publish({ ...this.#snapshot, phase: 'loading', applications: Object.freeze([]) })
+    const generation = this.#generation
     try {
-      const result = await this.api.refresh(previous.refreshToken, operation.signal)
-      if (result.session.activeTenantId !== previous.activeTenantId) throw new Error('REFRESH_TENANT_MISMATCH')
-      if (!this.#isCurrent(operation.generation)) return this.#snapshot
-      await this.vault.save({ session: result.session, user: this.#user })
-      if (!this.#isCurrent(operation.generation)) return this.#snapshot
-      this.#session = result.session
-      await this.#loadContext(operation.generation)
+      await this.#renewIfNeeded(true)
+      await this.#loadContext(generation)
     } catch (error) {
-      await this.#handleFailure(error, operation.generation)
+      await this.#handleFailure(error, generation)
     }
     return this.#snapshot
+  }
+
+  async #renewIfNeeded(force = false): Promise<void> {
+    const previous = this.#session, user = this.#user, generation = this.#generation
+    if (!previous || !user || (!force && Date.now() < this.#accessExpiresAt - 60_000)) return
+    try {
+      const result = await this.api.refresh(previous.refreshToken, this.#request.signal)
+      if (!this.#isCurrent(generation) || this.#disposed) throw new Error('PLATFORM_ACCESS_DISPOSED')
+      if (result.session.activeTenantId !== previous.activeTenantId || result.session.audience !== previous.audience) {
+        throw new PlatformApiError('TOKEN_AUDIENCE_INVALID', 'refresh identity mismatch', false)
+      }
+      await this.vault.save({ session: result.session, user })
+      if (!this.#isCurrent(generation) || this.#disposed) throw new Error('PLATFORM_ACCESS_DISPOSED')
+      this.#session = result.session
+      this.#accessExpiresAt = Date.now() + result.session.expiresIn * 1000
+    } catch (error) {
+      // Transport errors must not discard a usable refresh token or revoke open views.
+      if (error instanceof PlatformApiError && ['TOKEN_EXPIRED','TOKEN_AUDIENCE_INVALID','AUTHENTICATION_REQUIRED'].includes(error.code)) {
+        await this.#handleFailure(error, generation)
+      }
+      throw error
+    }
   }
 
   async #switchTenant(tenantId: string): Promise<PlatformDevAccessSnapshot> {
@@ -464,6 +514,7 @@ export class PlatformDevAccessController {
       await this.vault.save({ session: result.session, user: this.#user })
       if (!this.#isCurrent(operation.generation)) return this.#snapshot
       this.#session = result.session
+      this.#accessExpiresAt = Date.now() + result.session.expiresIn * 1000
       await this.#loadContext(operation.generation)
     } catch (error) {
       await this.#handleFailure(error, operation.generation)
@@ -513,6 +564,7 @@ export class PlatformDevAccessController {
       if (!await this.workspace.enter(session, user)) return this.#snapshot
       await this.vault.save({ session, user })
       this.#session = session; this.#user = user
+      this.#accessExpiresAt = Date.now() + session.expiresIn * 1000
       await this.#loadContext(operation.generation)
     } catch (error) {
       this.#session = undefined; this.#user = undefined
@@ -531,6 +583,7 @@ export class PlatformDevAccessController {
   }
 
   async #issueApplicationToken(appId: string): Promise<ApplicationTokenResult> {
+    await this.#renewIfNeeded()
     const session = this.#session
     if (session === undefined || this.#snapshot.activeTenantId !== session.activeTenantId
       || !this.#snapshot.applications.some(application => application.appId === appId)) {
@@ -617,6 +670,7 @@ export class PlatformDevAccessController {
     const problem = failure(error)
     if (problem.code === 'TOKEN_EXPIRED' || problem.code === 'TOKEN_AUDIENCE_INVALID'
       || problem.code === 'AUTHENTICATION_REQUIRED') {
+      this.#request.abort()
       await clearTenantBoundary(this.boundary)
       try { await this.vault.clear() } catch { /* expired credentials remain unusable */ }
       this.#session = undefined

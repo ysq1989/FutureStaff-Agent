@@ -400,7 +400,7 @@ export class PlatformDevApi extends PlatformApiClient {
       throw this.mismatch('active tenant ID is not valid for the contract route')
     }
     const body = await this.request(`/desktop/v1/apps/${appId}/token`, {
-      method: 'POST', signal: signal ?? null, headers: this.authorization(accessToken),
+      method: 'POST', signal: appId==='geo'?AbortSignal.any([...(signal?[signal]:[]),AbortSignal.timeout(5000)]):signal??null, headers: this.authorization(accessToken),
     })
     return this.decode(() => {
       if (!isRecord(body) || !Array.isArray(body.permissions)) throw new Error('invalid application token')
@@ -425,6 +425,46 @@ export class PlatformDevApi extends PlatformApiClient {
         audience: requireBoundedString(body, 'audience', 3, 100), tenantId,
         permissions: Object.freeze(permissions), meta: this.meta(body.meta),
       })
+    })
+  }
+  async authorizeGeoBrowser(accessToken:string,input:import('./contracts.js').GeoBrowserAuthorization,signal?:AbortSignal):Promise<{redirectUrl:string}> {
+    const production=this.baseUrl==='https://platform.fsstory.net';
+    const origin=production?'https://geo.fsstory.net':'https://geo-dev.fsstory.net';
+    if(input.clientId!==(production?'futurestaff-geo-prod':'futurestaff-geo-dev')||input.redirectUri!==origin+'/oauth/callback/futurestaff'
+      ||!/^[A-Za-z0-9_-]{43,128}$/.test(input.codeChallenge)||!/^[A-Za-z0-9_-]{16,128}$/.test(input.state))throw this.mismatch('invalid GEO browser request');
+    const body=await this.request('/desktop/v1/apps/geo/browser-authorize',{method:'POST',signal:AbortSignal.any([...(signal?[signal]:[]),AbortSignal.timeout(10000)]),headers:{...this.authorization(accessToken),'Content-Type':'application/json'},body:JSON.stringify(input)});
+    return this.decode(()=>{
+      if(!isRecord(body)||typeof body.redirectUrl!=='string')throw Error('invalid GEO handoff');
+      assertKeys(body,['redirectUrl','meta']);this.meta(body.meta);
+      const target=new URL(body.redirectUrl);
+      if(target.origin+target.pathname!==input.redirectUri||target.username||target.password||target.hash
+        ||[...target.searchParams.keys()].sort().join(',')!=='code,state'||target.searchParams.get('state')!==input.state
+        ||!/^[A-Za-z0-9_-]{20,256}$/.test(target.searchParams.get('code')||''))throw Error('invalid GEO callback');
+      return {redirectUrl:target.href};
+    });
+  }
+  async authorizeModuleBrowser(accessToken: string, appId: string, input: import('./contracts.js').GeoBrowserAuthorization, signal?: AbortSignal): Promise<{redirectUrl:string}> {
+    if (!['erp','product_hub','vietnam_immigration','geo'].includes(appId)) throw this.mismatch('unsupported browser application')
+    const body = await this.request(`/desktop/v1/apps/${appId}/browser-authorize`, { method: 'POST', ...(signal?{signal}:{}),
+      headers: {...this.authorization(accessToken), 'Content-Type':'application/json'}, body: JSON.stringify(input) })
+    return this.decode(() => {
+      if (!isRecord(body) || typeof body.redirectUrl !== 'string') throw Error('invalid module handoff')
+      assertKeys(body, ['redirectUrl','meta']); this.meta(body.meta)
+      const target = new URL(body.redirectUrl)
+      if (target.origin + target.pathname !== input.redirectUri || target.username || target.password || target.hash
+        || [...target.searchParams.keys()].sort().join(',') !== 'code,state' || target.searchParams.get('state') !== input.state
+        || !/^[A-Za-z0-9_-]{20,256}$/.test(target.searchParams.get('code') ?? '')) throw Error('invalid module callback')
+      return {redirectUrl:target.href}
+    })
+  }
+  async authorizeAiWeb(accessToken: string, input: {codeChallenge:string;state:string}, signal?:AbortSignal):Promise<{code:string;state:string}> {
+    const body=await this.request('/desktop/v1/apps/futurestaff_ai/web-authorize',{method:'POST',...(signal?{signal}:{}),
+      headers:{...this.authorization(accessToken),'Content-Type':'application/json'},body:JSON.stringify(input)})
+    return this.decode(()=>{
+      if(!isRecord(body))throw Error('invalid AI handoff')
+      assertKeys(body,['code','state','meta']);this.meta(body.meta)
+      if(typeof body.code!=='string'||!/^[A-Za-z0-9_-]{32,128}$/.test(body.code)||body.state!==input.state)throw Error('invalid AI proof')
+      return {code:body.code,state:input.state}
     })
   }
 }

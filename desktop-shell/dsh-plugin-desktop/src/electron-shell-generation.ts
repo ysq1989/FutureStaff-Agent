@@ -1,4 +1,5 @@
 import { DesktopModuleWindow } from './module-window.ts'
+import { DesktopSystemViews } from './system-views.ts'
 import {
   app,
   BrowserWindow,
@@ -225,6 +226,7 @@ export class ElectronShellGeneration {
     this.refreshNativeMaterial = refreshNativeMaterial
     refreshNativeMaterial()
     this.window = window
+    const systemViews = spec.resolveSystemApplication ? new DesktopSystemViews(window, origin, spec.resolveSystemApplication) : undefined
 
     let stateWriteTimer: ReturnType<typeof setTimeout> | undefined
     const persistWindowState = (): void => {
@@ -254,6 +256,8 @@ export class ElectronShellGeneration {
     const revealStartupSurface = (): void => {
       if (window.isDestroyed()) return
       if (startupSurfaceRevealed && !applicationNeedsReveal(window, platform.platform)) return
+      // Start the Windows workbench at full available size; later tray reveals keep the user's window state.
+      if (!startupSurfaceRevealed && platform.platform === 'win32') window.maximize()
       startupSurfaceRevealed = true
       this.show()
     }
@@ -412,6 +416,7 @@ export class ElectronShellGeneration {
     let tray: Tray | undefined
     let removeRendererAccessHeader: (() => void) | undefined
     this.cleanupListeners = () => {
+      systemViews?.dispose()
       moduleWindow.close()
       app.off('activate', activate)
       if (platform.platform === 'darwin') app.off('did-become-active', activate)

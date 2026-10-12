@@ -12,7 +12,7 @@
     {
       "path": "electron-shell-generation.ts",
       "reason": "FutureStaff owns authenticated system views, exact module windows, renderer capability scopes and Windows workbench sizing.",
-      "stableSha256": "0065a3eae98dcc4471accd48ffcdfe1123dccd2af9e044f13fd0dd9180406255",
+      "stableSha256": "5a5610f3f4de773fc06cbc37811d73e3a9d63812076e7573e4254791748b099a",
       "betaSha256": "5c930513cdc488893aabfffce7804dce66610f25df8c89da4823ec4693b68762"
     },
     {
@@ -52,10 +52,40 @@
       "betaSha256": "2afd6908ba91ae5f91136af3ffcf6adef90f410b1391ba9ef765a84fb808af84"
     },
     {
+      "path": "preload.ts",
+      "reason": "Product-only typed system-view IPC bridge, alongside the original file-path bridge.",
+      "stableSha256": "2860377403b78a74058d63249f48a697599120e094cd866c88500ce3680f6cf3",
+      "betaSha256": "d54d5f13a676ecc6f589fc94066e9f379bbe53b4cea25cc8df0de548df878210"
+    },
+    {
+      "path": "runtime.ts",
+      "reason": "Product-only authenticated system application resolver contract.",
+      "stableSha256": "2f3f4c4e9774e68b09ed4ccb428ecef4e2f3c75d641ec08a563bd78cee60a003",
+      "betaSha256": "2faed92ff5ba80a8b33ec3585cea0c2dab02bf1c9caeb680732a5fbdf379bc78"
+    },
+    {
       "path": "startup-recovery-window.ts",
       "reason": "FutureStaff product icon; recovery behavior remains shared.",
       "stableSha256": "f592b602ac742e574489ef2a7ba565fac2e738f6fe9a078620445cf00619ac6b",
       "betaSha256": "981a15fe2e6a529e01039c08308cb34602a9ad63bac49f70fdeb35b91859df6c"
+    },
+    {
+      "path": "system-session-fetch.ts",
+      "reason": "Product-only Electron cookie-session request adapter for manual SSO redirects.",
+      "stableSha256": "3816b0dd3fb0e005f379d8079c706faa7fb913495bd9a961e76e529b99cdecc7",
+      "betaSha256": null
+    },
+    {
+      "path": "system-view-contract.ts",
+      "reason": "Product-only typed system-view IPC and trusted Host resolver contracts.",
+      "stableSha256": "0a61e9da8c64394f7748a0d041cba01739c86949bd93bfdf579c89f6fcca1fb6",
+      "betaSha256": null
+    },
+    {
+      "path": "system-views.ts",
+      "reason": "Product-only isolated authorized WebContentsView tabs with caller checks, revocation and private-address blocking.",
+      "stableSha256": "234c24d86c058173c72c5c78f886528bdef15c626f22194c1462b9bde26ee1bd",
+      "betaSha256": null
     }
   ]
 }

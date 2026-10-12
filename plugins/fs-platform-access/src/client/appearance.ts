@@ -3,15 +3,16 @@ import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 
 // Map the product palette through the public theme seam; do not edit upstream CSS.
 const palette = {
-  '--fs-sidebar-bg': ['#1d4ed8', '#142b58'], '--fs-sidebar-hover': ['#1e40af', '#1e3a6a'],
-  '--fs-sidebar-text': ['#ffffff', '#ffffff'], '--fs-sidebar-muted': ['#dbeafe', '#c7d9f7'],
+  '--fs-sidebar-bg': ['#f7f8fa', '#17181c'], '--fs-sidebar-hover': ['#eceef2', '#25262c'],
+  '--fs-sidebar-text': ['#252b37', '#eeeef2'], '--fs-sidebar-muted': ['#626b7a', '#a8aab5'],
+  '--fs-sidebar-selected': ['#e8efff', '#242f49'], '--fs-control-selected': ['#ffffff', '#30313b'],
   '--fs-popup-muted': ['#475569', '#b1b2bd'], '--fs-popup-hover': ['#dbeafe', '#2b2c32'],
   '--fs-popup-text': ['#0f172a', '#eeeef2'],
-  '--bg-primary': ['#eff6ff', '#17181b'], '--bg-secondary': ['#ffffff', '#111215'],
+  '--bg-primary': ['#ffffff', '#17181b'], '--bg-secondary': ['#ffffff', '#111215'],
   '--bg-tertiary': ['#f8fafc', '#222327'], '--bg-elevated': ['#ffffff', '#26272c'],
-  '--bg-hover': ['#dbeafe', '#2b2c32'], '--bg-active': ['#dbeafe', '#30313b'],
+  '--bg-hover': ['#f1f3f6', '#2b2c32'], '--bg-active': ['#e8efff', '#30313b'],
   '--text-primary': ['#0f172a', '#eeeef2'], '--text-secondary': ['#475569', '#b1b2bd'],
-  '--text-tertiary': ['#64748b', '#92939f'], '--border-default': ['#cbd5e1', '#33343c'],
+  '--text-tertiary': ['#64748b', '#92939f'], '--border-default': ['#e2e5eb', '#33343c'],
   '--accent-primary': ['#2563eb', '#60a5fa'], '--accent-hover': ['#1d4ed8', '#93c5fd'],
   '--fs-cyan': ['#475569', '#b1b2bd'], '--fs-button-start': ['#2563eb', '#2563eb'],
   '--fs-button-end': ['#1d4ed8', '#1d4ed8'], '--fs-on-accent': ['#ffffff', '#ffffff'],

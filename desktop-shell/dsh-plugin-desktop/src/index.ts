@@ -477,6 +477,11 @@ export function apply(ctx: Context, config: Config): void {
         material,
         ...(runtime.windowsBuild === undefined ? {} : { windowsBuild: runtime.windowsBuild }),
         url,
+        resolveSystemApplication: async appId => {
+          const service = ctx.get('platformDevLogin') as { resolveSystemApplication?: (id: string) => Promise<{url:string;owner:string;signal:AbortSignal}> } | undefined
+          if (!service?.resolveSystemApplication) throw new Error('SYSTEM_VIEW_UNAVAILABLE')
+          return service.resolveSystemApplication(appId)
+        },
         authenticationUrl: ctx.connection.authenticatedUrl(new URL(url).origin),
         rendererAccessHeader: browserAccess.rendererHeader,
         productName: DESKTOP_PRODUCT_NAME,

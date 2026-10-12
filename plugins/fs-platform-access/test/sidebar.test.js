@@ -41,8 +41,8 @@ test('account sidebar preserves sessions and settings but replaces legacy launch
   assert.doesNotMatch(html, />退出登录</)
   assert.deepEqual(slots.map(slot => slot.name), ['sidebar.workspaces', 'sidebar.settings'])
   assert.equal(slots[1].props.wide, true)
-  assert.match(html, /FutureStaff ERP/)
-  assert.match(html, /FutureStaff Hub/)
+  assert.doesNotMatch(html, /打开进销存系统/)
+  assert.doesNotMatch(html, /打开货源集市/)
   assert.doesNotMatch(html, /选品中心/)
 })
 

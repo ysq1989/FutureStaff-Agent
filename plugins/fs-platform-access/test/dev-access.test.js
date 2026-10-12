@@ -29,6 +29,109 @@ const model = {
   provider: 'openai', model: 'gpt-platform', supportsVision: true, isDefault: true,
 }
 
+test('access expiry refreshes once before concurrent Host operations without revoking views', async t => {
+  t.mock.timers.enable({apis:['Date'], now:1_000_000})
+  const api=new FakeDevApi(), vault=new FakeVault()
+  let rotations=0
+  api.refresh=async()=>{rotations++;return {session:session(tenantId,`rotation-${rotations}`)}}
+  const access=new PlatformDevAccessController(api,vault,new InMemoryTenantResources())
+  await access.login({loginIdentifier:'dev@example.invalid',password:'test-only'})
+  const original=await access.authorizeLocal()
+  t.mock.timers.tick(900_000)
+  const [chat, local]=await Promise.all([access.authorizeChat(),access.authorizeLocal()])
+  assert.equal(rotations,1)
+  assert.match(chat.accessToken,/rotation-1/)
+  assert.equal(local.signal,original.signal)
+  assert.equal(original.signal.aborted,false)
+  await access.logout()
+  assert.equal(original.signal.aborted,true)
+})
+
+test('restoring persisted session refreshes before querying context', async()=>{
+  const api=new FakeDevApi(), vault=new FakeVault()
+  api.listTenants=async token=>{
+    if(token===session().accessToken)throw new PlatformApiError('TOKEN_EXPIRED','expired',false,401)
+    return {activeTenantId:tenantId,items:tenants}
+  }
+  const access=new PlatformDevAccessController(api,vault,new InMemoryTenantResources())
+  assert.equal((await access.restore()).phase,'ready')
+  assert.equal(vault.cleared,false)
+  access.dispose()
+})
+
+test('explicit same-owner refresh leaves existing Host view signals valid',async()=>{
+  const access=new PlatformDevAccessController(new FakeDevApi(),new FakeVault(),new InMemoryTenantResources())
+  await access.restore()
+  const original=await access.authorizeLocal()
+  await access.refresh()
+  assert.equal(original.signal.aborted,false)
+  assert.equal((await access.authorizeLocal()).signal,original.signal)
+  access.dispose()
+})
+
+test('temporary refresh failure preserves credentials and views for the next attempt',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:1_000_000})
+  const api=new FakeDevApi(),vault=new FakeVault()
+  const access=new PlatformDevAccessController(api,vault,new InMemoryTenantResources())
+  await access.login({loginIdentifier:'dev@example.invalid',password:'test-only'})
+  const identity=await access.authorizeLocal(),refresh=api.refresh.bind(api)
+  t.mock.timers.tick(900_000)
+  api.refresh=async()=>{throw new PlatformApiError('PLATFORM_UNAVAILABLE','offline',true,503)}
+  await assert.rejects(access.authorizeChat())
+  assert.equal(identity.signal.aborted,false)
+  assert.equal(vault.cleared,false)
+  api.refresh=refresh
+  assert.match((await access.authorizeChat()).accessToken,/refreshed/)
+  access.dispose()
+})
+
+test('revoked refresh credentials fail closed and revoke existing system views',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:1_000_000})
+  const api=new FakeDevApi(),vault=new FakeVault()
+  const access=new PlatformDevAccessController(api,vault,new InMemoryTenantResources())
+  await access.login({loginIdentifier:'dev@example.invalid',password:'test-only'})
+  const identity=await access.authorizeLocal()
+  t.mock.timers.tick(900_000)
+  api.refresh=async()=>{throw new PlatformApiError('AUTHENTICATION_REQUIRED','revoked',false,401)}
+  await assert.rejects(access.authorizeLocal())
+  assert.equal(identity.signal.aborted,true)
+  assert.equal(vault.cleared,true)
+  assert.equal(access.getSnapshot().phase,'expired')
+  access.dispose()
+})
+
+test('all embedded system handoffs use a renewed desktop token after idle expiry',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:1_000_000})
+  const api=new FakeDevApi(),vault=new FakeVault(),tokens=[]
+  api.listApplications=async()=>({activeTenantId:tenantId,items:['erp','geo','futurestaff_ai'].map(appId=>({...application(tenantId),appId}))})
+  api.authorizeModuleBrowser=async token=>{tokens.push(token);return {redirectUrl:'fixture'}}
+  api.authorizeGeoBrowser=async token=>{tokens.push(token);return {redirectUrl:'fixture'}}
+  api.authorizeAiWeb=async token=>{tokens.push(token);return {code:'fixture',state:'fixture'}}
+  const access=new PlatformDevAccessController(api,vault,new InMemoryTenantResources())
+  await access.login({loginIdentifier:'dev@example.invalid',password:'test-only'})
+  for(let cycle=0;cycle<4;cycle++){
+    t.mock.timers.tick(900_000)
+    await Promise.all([access.authorizeModuleBrowser('erp',{}),access.authorizeGeoBrowser({}),access.authorizeAiWeb({})])
+  }
+  assert.equal(tokens.length,12)
+  assert.ok(tokens.every(token=>token===session(tenantId,'refreshed').accessToken))
+  access.dispose()
+})
+
+test('refresh identity mismatch cannot move a guest into another tenant',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:1_000_000})
+  const api=new FakeDevApi(),vault=new FakeVault()
+  const access=new PlatformDevAccessController(api,vault,new InMemoryTenantResources())
+  await access.login({loginIdentifier:'dev@example.invalid',password:'test-only'})
+  const identity=await access.authorizeLocal()
+  t.mock.timers.tick(900_000)
+  api.refresh=async()=>({session:session(otherTenantId,'foreign')})
+  await assert.rejects(access.authorizeLocal())
+  assert.equal(identity.signal.aborted,true)
+  assert.equal(vault.value,undefined)
+  access.dispose()
+})
+
 class FakeVault {
   value = { session: session(), user }
   saves = []
@@ -265,7 +368,7 @@ test('DEV access issues an application token only for the active authorized Prod
   assert.equal(token.expiresIn, 60)
   assert.equal(token.tenantId, tenantId)
   assert.deepEqual(api.tokenRequests, [{
-    accessToken: session().accessToken, appId: 'product_hub', activeTenantId: tenantId,
+    accessToken: session(tenantId, 'refreshed').accessToken, appId: 'product_hub', activeTenantId: tenantId,
   }])
   await assert.rejects(() => controller.issueApplicationToken('erp'), /not authorized/)
   assert.equal(api.tokenRequests.length, 1)

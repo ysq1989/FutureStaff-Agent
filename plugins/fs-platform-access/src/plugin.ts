@@ -64,6 +64,7 @@ async function readBody(request: IncomingMessage): Promise<Buffer> {
 export interface PlatformAccessConfig { readonly embeddedMock?: boolean; readonly environment?: PlatformEnvironment }
 
 export interface PlatformDevLoginService {
+  resolveSystemApplication(appId: string): Promise<{ url: string; owner: string; signal: AbortSignal; prepare: (fetcher: import('./system-sso.js').SystemFetch) => Promise<boolean> }>
   authorizeLocal(): Promise<{ tenantId: string; userId: string; signal: AbortSignal; namespace?: string }>
   begin(): Promise<{ readonly authorizationUrl: string }>
   snapshot(): Promise<PlatformDevAccessSnapshot>
@@ -73,6 +74,7 @@ export interface PlatformDevLoginService {
   switchTenant(tenantId: string): Promise<PlatformDevAccessSnapshot>
   logout(): Promise<PlatformDevAccessSnapshot>
   issueApplicationToken(appId: string): Promise<ApplicationTokenResult>
+  authorizeGeoBrowser(input:import('./contracts.js').GeoBrowserAuthorization):Promise<{redirectUrl:string}>
   diagnostics(): Promise<{ readonly pending: boolean; readonly exchanging: boolean; readonly vault: 'stored' | 'empty' | 'unavailable' }>
   cancel(): void
 }
@@ -169,6 +171,23 @@ function mountDevLogin(ctx: Context, environment: PlatformEnvironment): void {
     coordinator.cancel()
   }
   const service: PlatformDevLoginService = Object.freeze({
+    resolveSystemApplication: async (appId: string) => {
+      await initialized
+      const identity = await access.authorizeLocal()
+      const { authorizedSystemHome } = await import('./system-navigation.js')
+      const url = authorizedSystemHome(access.getSnapshot(), appId)
+      if (!url || identity.signal.aborted) throw new Error('SYSTEM_VIEW_DENIED')
+      return { url, owner: JSON.stringify([origin, identity.tenantId, identity.userId]), signal: identity.signal,
+        prepare: async (fetcher: import('./system-sso.js').SystemFetch) => {
+          const current = await access.authorizeLocal()
+          if (current.signal !== identity.signal || current.userId !== identity.userId || current.tenantId !== identity.tenantId
+            || authorizedSystemHome(access.getSnapshot(), appId) !== url) throw new Error('SYSTEM_SSO_REVOKED')
+          const { establishModuleSession } = await import('./system-sso.js')
+          return establishModuleSession({appId,url,authority:origin,userId:identity.userId,tenantId:identity.tenantId,
+            signal:identity.signal,fetch:fetcher,authorize:(moduleId,body)=>access.authorizeModuleBrowser(moduleId,body),
+            authorizeAi:body=>access.authorizeAiWeb(body)})
+        } }
+    },
     authorizeLocal: async () => { await initialized; return { ...await access.authorizeLocal(), namespace: origin } },
     begin: async () => {
       if (workspace) throw new Error('TENANT_PASSWORD_LOGIN_REQUIRED')
@@ -214,6 +233,7 @@ function mountDevLogin(ctx: Context, environment: PlatformEnvironment): void {
     switchTenant: (tenantId: string) => access.switchTenant(tenantId),
     logout: () => access.logout(),
     issueApplicationToken: (appId: string) => access.issueApplicationToken(appId),
+    authorizeGeoBrowser: (input:import('./contracts.js').GeoBrowserAuthorization) => access.authorizeGeoBrowser(input),
     diagnostics: () => coordinator.diagnostics(),
     cancel: close,
   })

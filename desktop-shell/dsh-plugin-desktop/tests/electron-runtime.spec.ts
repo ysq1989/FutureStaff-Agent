@@ -154,6 +154,7 @@ const electron = vi.hoisted(() => {
     readonly flashFrame = vi.fn()
     readonly restore = vi.fn()
     readonly show = vi.fn()
+    readonly maximize = vi.fn()
     readonly hide = vi.fn()
     readonly focus = vi.fn()
     readonly on = browserWindowOn
@@ -326,10 +327,10 @@ describe('Electron desktop runtime', () => {
   ('handles prepared updates safely: %s', async action => {
     vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
     electron.app.isPackaged = true
-    const release = { version: '3.0.0', notes: 'Release notes', installer: {
+    const release = { version: '3.0.1', notes: 'Release notes', installer: {
       url: 'https://fsstory.net/desktop-updates/setup.exe', sha256: 'a'.repeat(64), size: 100 } }
     preparedUpdate.prepare.mockResolvedValue('C:/private/verified-Setup.exe')
-    preparedUpdate.check.mockResolvedValue(action === 'feed-change' ? { ...release, version: '3.0.1' } : release)
+    preparedUpdate.check.mockResolvedValue(action === 'feed-change' ? { ...release, version: '3.0.2' } : release)
     if (action === 'tamper') preparedUpdate.verify.mockRejectedValue(Error('UPDATE_HASH_REJECTED'))
     electron.dialog.showMessageBox.mockResolvedValue({ response: action === 'later' ? 1 : 0, checkboxChecked: false })
     const requestQuit = vi.fn()
@@ -1278,6 +1279,9 @@ describe('Electron desktop runtime', () => {
 
     await runtime.mountScheduled()
 
+    expect(electron.browserWindows[0]?.maximize).toHaveBeenCalledOnce()
+    expect(electron.browserWindows[0]!.maximize.mock.invocationCallOrder[0]).toBeLessThan(electron.browserWindows[0]!.show.mock.invocationCallOrder[0]!)
+
     const window = electron.browserWindows[0]
     const ready = window?.once.mock.calls.find(([event]) => event === 'ready-to-show')?.[1]
     const activate = electron.app.on.mock.calls.find(([event]) => event === 'activate')?.[1]
@@ -1328,12 +1332,14 @@ describe('Electron desktop runtime', () => {
     expect(ready).toEqual(expect.any(Function))
     expect(window?.show).toHaveBeenCalledOnce()
     expect(window?.focus).toHaveBeenCalledOnce()
+    expect(window?.maximize).not.toHaveBeenCalled()
 
     window?.isVisible.mockReturnValue(true)
     ready()
 
     expect(window?.show).toHaveBeenCalledOnce()
     expect(window?.focus).toHaveBeenCalledOnce()
+    expect(window?.maximize).not.toHaveBeenCalled()
 
     await release()
   })
@@ -1693,7 +1699,7 @@ describe('Electron desktop runtime', () => {
         appExecutable: process.execPath,
         electronVersion: '43.4.0',
         profileName: 'desktop',
-        productVersion: '3.0.0-rc.1',
+        productVersion: '3.0.0',
         profileDir: expect.stringMatching(/profiles[\\/]+desktop$/u),
         homeDir: expect.stringContaining('dsh-desktop-user-data'),
         spawn: expect.any(Function),
@@ -1729,7 +1735,7 @@ describe('Electron desktop runtime', () => {
     expect(diagnostics.export).toHaveBeenCalledWith(
       expect.stringContaining('dsh-desktop-user-data'),
       expect.objectContaining({
-        appVersion: '3.0.0-rc.1',
+        appVersion: '3.0.0',
         crashDumpsDir: expect.stringMatching(/[\\/]Crashpad$/u),
       }),
     )
@@ -2037,7 +2043,7 @@ describe('Electron desktop runtime', () => {
     expect(runtime.updates).toMatchObject({
       isPackaged: false,
       canDownload: false,
-      currentVersion: '3.0.0-rc.1',
+      currentVersion: '3.0.0',
       statePath: join('/tmp/dsh-desktop-user-data', 'updates', 'state.json'),
     })
     electron.app.isPackaged = true

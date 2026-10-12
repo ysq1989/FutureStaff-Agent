@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type { SystemViewResolver } from './system-view-contract.ts'
 import type { DesktopRendererAccessHeader } from './desktop-browser-access.ts'
 import type { RendererBootReport } from './renderer-boot-contract.ts'
 import type { DesktopReleaseChannel, UpdateCheckResult, UpdateRequest } from './update-checker.ts'
@@ -145,6 +146,8 @@ export interface DesktopTerminalSpec {
 
 /** Values the desktop-shell plugin hands to the Electron adapter. */
 export interface DesktopShellSpec extends DesktopWindowConfig {
+  /** Resolve a business page from the product Host's current authenticated session. */
+  resolveSystemApplication?: SystemViewResolver
   /** Actual material after platform and Windows-build capability gating. */
   material: DesktopWindowMaterial
   /** Windows build used for material capability reporting, when applicable. */

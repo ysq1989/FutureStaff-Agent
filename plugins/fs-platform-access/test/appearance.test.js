@@ -81,7 +81,7 @@ test('installed upstream ThemeRuntime accepts the product layer and removes it a
     subscribe: () => () => {}, getSnapshot: () => ({ value: { preference:'light',fontSize:14 } }), set: async () => {},
   })
   const release = theme.overrideTokens('futurestaff-test',appearanceTokens)
-  assert.equal(theme.getTheme().active.tokens['--bg-primary'],'#eff6ff')
+  assert.equal(theme.getTheme().active.tokens['--bg-primary'],'#ffffff')
   theme.setTheme('dark')
   assert.equal(theme.getTheme().active.colorScheme,'dark')
   assert.equal(theme.getTheme().active.tokens['--dsw-alias-bg-base'],'#17181b')

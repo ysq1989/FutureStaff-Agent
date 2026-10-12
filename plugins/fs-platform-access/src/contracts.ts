@@ -84,6 +84,9 @@ export interface ApplicationTokenResult {
   readonly permissions: readonly string[]
   readonly meta: ContractMeta
 }
+export interface GeoBrowserAuthorization {
+ readonly clientId:string;readonly redirectUri:string;readonly codeChallenge:string;readonly state:string;
+}
 
 export type PlatformErrorCode =
   | 'INVALID_REQUEST'
