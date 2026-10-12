@@ -22,8 +22,10 @@ const textOnly = (blocks: readonly ContentBlock[]): string => blocks.map(block =
 
 export function chatOwnerKey(origin: string, sessionId: string): string {
   assertPlatformOrigin(origin)
-  const environment = origin === 'https://dev.fsstory.net' ? '' : `${createHash('sha256').update(origin).digest('hex')}.`
-  return `futurestaff.chat.owner.${environment}${createHash('sha256').update(sessionId).digest('hex')}`
+  // Keep legacy DEV keys; hash the complete scoped identity once to fit the native 128-character limit.
+  const legacy = origin === 'https://dev.fsstory.net'
+  const digest = createHash('sha256').update(legacy ? sessionId : JSON.stringify([origin, sessionId])).digest('hex')
+  return `futurestaff.chat.owner.${legacy ? '' : 'scoped.'}${digest}`
 }
 
 function messages(options: GenerateOptions): unknown[] {

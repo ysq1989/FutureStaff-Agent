@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { FutureStaffChatAdapter } from '../lib/chat.js'
+import { FutureStaffChatAdapter, chatOwnerKey } from '../lib/chat.js'
 import { apply as applyDefault } from '../lib/model-default.js'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime, { createUserMessage } from '@deepseek-ai/dsh-llm'
@@ -15,6 +15,18 @@ const response = (events, headers = {}) => new Response(events.map(event => JSON
   headers: { 'content-type': 'application/x-ndjson', 'x-futurestaff-chat-contract': '0.1.0', ...headers },
 })
 const done = { type: 'result', content: '您好', toolCalls: [], finishReason: 'stop' }
+test('production protected ownership fits the native key limit and isolates origins and sessions',async()=>{
+  const data=new Map()
+  const validate=key=>assert.match(key,/^[a-z][a-z0-9._-]{2,127}$/u)
+  const secrets={read:async key=>{validate(key);return data.get(key)},write:async(key,value)=>{validate(key);data.set(key,value)}}
+  const production='https://platform.fsstory.net'
+  const adapter=new FutureStaffChatAdapter(async()=>credentials(),secrets,async()=>response([done]),production)
+  await collect(adapter.stream(options()))
+  assert.equal(data.size,1)
+  assert.notEqual(chatOwnerKey(production,'session-a'),chatOwnerKey(production,'session-b'))
+  assert.notEqual(chatOwnerKey(production,'session-a'),chatOwnerKey('https://dev.fsstory.net','session-a'))
+  assert.equal(chatOwnerKey('https://dev.fsstory.net','session-a'),'futurestaff.chat.owner.fa57a52dbf08190218529730a3e99db6946c6c29220fb6e0551e21598b0b05db')
+})
 function setup(fetcher = async () => response([{ type: 'text', text: '您好' }, done])) {
   const data = new Map()
   const secrets = { read: async key => data.get(key), write: async (key, value) => { data.set(key, value) } }
