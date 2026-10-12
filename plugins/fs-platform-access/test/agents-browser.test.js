@@ -22,11 +22,11 @@ test('real browser selects persistent agents, isolates sessions, preserves files
   const cards=[1,2].map(n=>({agentId:`30000000-0000-4000-8000-00000000000${n}`,name:`助手${n}`,description:`知识${n} ${'Long role description for a persistent agent. '.repeat(12)}`,available:true,unavailableReason:null}))
   const bundle=await build({stdin:{resolveDir:root,loader:'tsx',contents:`
     import React,{useState,useSyncExternalStore}from'react';import{createRoot}from'react-dom/client';
-    import{createAgentBrowser,createAgentPicker}from'./plugins/fs-platform-access/src/client/agents.tsx';
+    import{createAgentBrowser,createAgentPicker,createAgentConversation,createAgentNavigation}from'./plugins/fs-platform-access/src/client/agents.tsx';
     import{appearanceTokens}from'./plugins/fs-platform-access/src/client/appearance.ts';
     const listeners=new Set();let identity={phase:'ready',activeTenantId:'tenant',user:{userId:'user'}};
     const controller={subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn)},getSnapshot:()=>identity};
-    const Browser=createAgentBrowser(controller,()=> <p>原工作区资料</p>),Picker=createAgentPicker(controller);
+    const navigation=createAgentNavigation(),Browser=createAgentBrowser(controller,()=> <p>原工作区资料</p>,navigation),Picker=createAgentPicker(controller);
     const nativeListeners=new Set();let sessions={ids:[],byId:{},current:undefined},workspaces={items:[],archivedSessionIds:[]};
     const update=()=>nativeListeners.forEach(fn=>fn());let number=0;
     const createWorkspace=async({path})=>{let item=workspaces.items.find(w=>w.path===path);if(!item){item={path,workspaceId:path,sessionIds:[]};workspaces={...workspaces,items:[...workspaces.items,item]};update()}return item};
@@ -35,7 +35,8 @@ test('real browser selects persistent agents, isolates sessions, preserves files
     const useSessions=select=>select(useSyncExternalStore(fn=>{nativeListeners.add(fn);return()=>nativeListeners.delete(fn)},()=>sessions));
     const useWorkspaces=select=>select(useSyncExternalStore(fn=>{nativeListeners.add(fn);return()=>nativeListeners.delete(fn)},()=>workspaces));
     for(const[key,value]of Object.entries(appearanceTokens))document.documentElement.style.setProperty(key,value.light);
-    function App(){const[open,setOpen]=useState(false);return <main style={{maxWidth:480,padding:12}}><button id="open-picker" onClick={()=>setOpen(true)}>选择</button><Browser useSessions={useSessions} useWorkspaces={useWorkspaces} createWorkspace={createWorkspace} startSession={startSession} open={id=>{sessions={...sessions,current:id};update()}} wide={true}/><Picker open={open} onClose={()=>setOpen(false)} onPick={startSession} createWorkspace={createWorkspace}/></main>}
+    const Managed=createAgentConversation(controller,navigation,createWorkspace,()=> <section id="active-chat">会话内容</section>);
+    function App(){const[open,setOpen]=useState(false);return <div style={{display:'flex',height:'100vh'}}><aside style={{width:220,flexShrink:0,padding:12,display:'flex',flexDirection:'column'}}><button id="new-session" onClick={()=>{navigation.begin();sessions={...sessions,current:undefined};update()}}>新会话</button><Browser useSessions={useSessions} useWorkspaces={useWorkspaces} createWorkspace={createWorkspace} startSession={startSession} open={id=>{sessions={...sessions,current:id};update()}} wide={true}/></aside><main style={{flex:1,minWidth:0}}><button id="open-picker" onClick={()=>setOpen(true)}>选择</button><div style={{height:'calc(100% - 32px)',minHeight:0}}><Managed useSessions={useSessions} selectWorkspace={async id=>startSession(id)}/></div><Picker open={open} onClose={()=>setOpen(false)} onPick={startSession} createWorkspace={createWorkspace}/></main></div>}
     createRoot(document.getElementById('root')).render(<App/>);
   `},bundle:true,write:false,format:'iife',jsx:'automatic'})
   let slow=false
@@ -64,7 +65,8 @@ test('real browser selects persistent agents, isolates sessions, preserves files
     await cdp.call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`})
     const waitFor=async(fn)=>{for(let i=0;i<80;i++){if(await cdp.evaluate(fn,null))return;await sleep(50)}assert.fail('browser state did not settle')}
     await waitFor(()=>document.querySelectorAll('.fs-agent-choice').length===2)
-    await cdp.evaluate(()=>{document.querySelector('.fs-agent-list').style.maxHeight='140px';return true},null)
+    assert.equal(await cdp.evaluate(()=>document.querySelector('aside .fs-agent-choice')===null,null),true)
+    assert.equal(await cdp.evaluate(()=>document.querySelector('aside').innerText.includes('本机数据位置'),null),false)
     assert.equal(await cdp.evaluate(()=>[...document.querySelectorAll('.fs-agent-choice')].every(button=>{
       const box=button.getBoundingClientRect(),description=button.querySelector('small').getBoundingClientRect()
       return description.bottom<=box.bottom&&description.height<=parseFloat(getComputedStyle(button.querySelector('small')).lineHeight)*2+1
@@ -75,24 +77,35 @@ test('real browser selects persistent agents, isolates sessions, preserves files
     const first=native.sessions.current,cwd=native.sessions.byId[first].cwd
     assert.equal((await resolveSessionAgent(store,first,cwd)).agentId,cards[0].agentId)
     await writeFile(path.join(cwd,'local.txt'),'preserved work')
+    assert.equal(await cdp.evaluate(()=>document.querySelector('.fs-agent-home')===null&&!!document.querySelector('#active-chat'),null),true)
+    await cdp.evaluate(()=>document.querySelector('#new-session').click()||true,null)
+    await waitFor(()=>document.querySelectorAll('.fs-agent-choice').length===2)
     await cdp.evaluate(()=>document.querySelectorAll('.fs-agent-choice')[1].click()||true,null)
     await waitFor(()=>window.fixture.get().sessions.ids.length===2)
-    assert.equal(await cdp.evaluate(()=>document.querySelectorAll('.fs-agent-session').length,null),1)
+    assert.equal(await cdp.evaluate(()=>document.querySelectorAll('.fs-agent-session').length,null),2)
     native=await cdp.evaluate(()=>window.fixture.get(),null)
     assert.equal((await resolveSessionAgent(store,native.sessions.current,native.sessions.byId[native.sessions.current].cwd)).agentId,cards[1].agentId)
+    await cdp.evaluate(()=>document.querySelector('#new-session').click()||true,null)
+    await waitFor(()=>document.querySelectorAll('.fs-agent-choice').length===2)
     await cdp.evaluate(()=>document.querySelectorAll('.fs-agent-choice')[0].click()||true,null)
     await waitFor(()=>window.fixture.get().sessions.ids.length===3)
-    assert.equal(await cdp.evaluate(()=>document.querySelectorAll('.fs-agent-session').length,null),2)
+    assert.equal(await cdp.evaluate(()=>document.querySelectorAll('.fs-agent-session').length,null),3)
     assert.equal(await readFile(path.join(cwd,'local.txt'),'utf8'),'preserved work')
     assert.equal((await new AgentWorkspaceStore(store.root,identity).binding(first)).agentId,cards[0].agentId)
-    await cdp.evaluate(()=>document.querySelector('.fs-agent-legacy').click()||true,null)
-    assert.equal(await cdp.evaluate(()=>document.body.textContent.includes('原工作区资料'),null),true)
+    assert.equal(await cdp.evaluate(()=>document.querySelector('.fs-agent-legacy')===null,null),true)
+    await cdp.evaluate(()=>document.querySelector('#new-session').click()||true,null)
+    await waitFor(()=>!!document.querySelector('.fs-agent-home'))
+    await cdp.evaluate(()=>document.querySelector('.fs-agent-session').click()||true,null)
+    await waitFor(()=>!!document.querySelector('#active-chat')&&!document.querySelector('.fs-agent-home'))
     await cdp.evaluate(()=>document.getElementById('open-picker').click()||true,null)
     assert.equal(await cdp.evaluate(()=>document.activeElement.textContent,null),'关闭')
     await cdp.evaluate(()=>{const dialog=document.querySelector('[role=dialog]'),last=[...dialog.querySelectorAll('button')].at(-1);last.focus();last.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));return true},null)
     assert.equal(await cdp.evaluate(()=>document.activeElement.textContent,null),'关闭')
     await cdp.evaluate(()=>document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true})),null)
     assert.equal(await cdp.evaluate(()=>document.querySelector('[role=dialog]')===null,null),true)
+    await cdp.evaluate(()=>document.querySelector('#new-session').click()||true,null)
+    await waitFor(()=>document.querySelectorAll('.fs-agent-choice').length===2)
+    await cdp.evaluate(()=>{document.querySelector('aside').style.display='none';return true},null)
     await cdp.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true})
     assert.equal(await cdp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth,null),true)
     const output=path.join(root,'work','persistent-agents-v3');await mkdir(output,{recursive:true})

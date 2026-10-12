@@ -19,7 +19,7 @@ export { SystemPages, SystemMain } from './system-pages.js'
 import { watchSlotComponents } from './slot-components.js'
 import { LoginPreferences } from '../login-preferences.js'
 import { AgentMarketSection } from './market.js'
-import { createAgentBrowser, createAgentPicker } from './agents.js'
+import { createAgentBrowser, createAgentPicker, createAgentConversation, createAgentNavigation, type AgentConversationProps } from './agents.js'
 import type { RememberedLoginHint } from '../remembered-login.js'
 
 const DEV_ROUTE_PREFIX = '/_futurestaff/platform-dev'
@@ -476,9 +476,14 @@ export function apply(ctx: ClientContext): void {
   // workspace on logout/tenant changes, including while the gate renders null.
   const controller = new PlatformDevClientController()
   const pages = new SystemPages()
+  const agentNavigation=createAgentNavigation()
+  const createWorkspace=(input:{path:string})=>{
+    const service=ctx.get('workspaces') as unknown as {create(value:{path:string}):Promise<{workspaceId:string;path:string;sessionIds:readonly string[]}>}
+    return service.create(input)
+  }
   ctx.slots.inject('sidebar.workspaces', () => watchSlotComponents(ctx.slots, 'sidebar.workspaces',
     entry => (entry.options.priority ?? 0) === 0,
-    component => createAgentBrowser(controller, component as Parameters<typeof createAgentBrowser>[1])))
+    component => createAgentBrowser(controller, component as Parameters<typeof createAgentBrowser>[1],agentNavigation)))
   ctx.slots.inject('conversation.hero.workspace', () => watchSlotComponents(ctx.slots, 'conversation.hero.workspace',
     entry => (entry.options.priority ?? 0) === 0,
     () => createAgentPicker(controller)))
@@ -486,7 +491,11 @@ export function apply(ctx: ClientContext): void {
   if (typeof ctx.provide === 'function') ctx.provide('platformSystemPages', pages)
   ctx.slots.inject('sidebar', () => watchSlotComponents(ctx.slots, 'sidebar',
     entry => entry.locale === 'sidebar' && (entry.options.priority ?? 0) === 0,
-    () => createAccountSidebar(controller,pages)))
+    () => createAccountSidebar(controller,pages,()=>{
+      agentNavigation.begin()
+      const sessions=ctx.get('sessions') as unknown as {clear():void}
+      sessions.clear()
+    })))
   ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({
     name: 'sidebar.brand.mark', priority: -100,
   }, FutureStaffBrandMark))
@@ -499,8 +508,9 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('conversation', () => watchSlotComponents(ctx.slots, 'conversation',
     entry => (entry.options.priority ?? 0) === 0,
     component => {
-      const Conversation=brandConversation(component as ComponentType<BrandedConversationProps>)
-      return function FutureStaffMain(props:BrandedConversationProps){return createElement(SystemMain,{pages,chat:createElement(Conversation,props)})}
+      const Original=brandConversation(component as ComponentType<BrandedConversationProps>)
+      const Conversation=createAgentConversation(controller,agentNavigation,createWorkspace,Original as unknown as ComponentType<Record<string,unknown>>)
+      return function FutureStaffMain(props:BrandedConversationProps){return createElement(SystemMain,{pages,chat:createElement(Conversation,props as unknown as AgentConversationProps)})}
     }))
   for (const name of ['conversation.hero.agentPreset', 'conversation.session.header.actions', 'settings.section'] as const) {
     ctx.slots.inject(name, () => watchSlotComponents(ctx.slots, name,

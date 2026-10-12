@@ -327,10 +327,10 @@ describe('Electron desktop runtime', () => {
   ('handles prepared updates safely: %s', async action => {
     vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
     electron.app.isPackaged = true
-    const release = { version: '3.0.2', notes: 'Release notes', installer: {
+    const release = { version: '3.0.3', notes: 'Release notes', installer: {
       url: 'https://fsstory.net/desktop-updates/setup.exe', sha256: 'a'.repeat(64), size: 100 } }
     preparedUpdate.prepare.mockResolvedValue('C:/private/verified-Setup.exe')
-    preparedUpdate.check.mockResolvedValue(action === 'feed-change' ? { ...release, version: '3.0.3' } : release)
+    preparedUpdate.check.mockResolvedValue(action === 'feed-change' ? { ...release, version: '3.0.4' } : release)
     if (action === 'tamper') preparedUpdate.verify.mockRejectedValue(Error('UPDATE_HASH_REJECTED'))
     electron.dialog.showMessageBox.mockResolvedValue({ response: action === 'later' ? 1 : 0, checkboxChecked: false })
     const requestQuit = vi.fn()
@@ -1699,7 +1699,7 @@ describe('Electron desktop runtime', () => {
         appExecutable: process.execPath,
         electronVersion: '43.4.0',
         profileName: 'desktop',
-        productVersion: '3.0.1',
+        productVersion: '3.0.2',
         profileDir: expect.stringMatching(/profiles[\\/]+desktop$/u),
         homeDir: expect.stringContaining('dsh-desktop-user-data'),
         spawn: expect.any(Function),
@@ -1735,7 +1735,7 @@ describe('Electron desktop runtime', () => {
     expect(diagnostics.export).toHaveBeenCalledWith(
       expect.stringContaining('dsh-desktop-user-data'),
       expect.objectContaining({
-        appVersion: '3.0.1',
+        appVersion: '3.0.2',
         crashDumpsDir: expect.stringMatching(/[\\/]Crashpad$/u),
       }),
     )
@@ -2043,7 +2043,7 @@ describe('Electron desktop runtime', () => {
     expect(runtime.updates).toMatchObject({
       isPackaged: false,
       canDownload: false,
-      currentVersion: '3.0.1',
+      currentVersion: '3.0.2',
       statePath: join('/tmp/dsh-desktop-user-data', 'updates', 'state.json'),
     })
     electron.app.isPackaged = true

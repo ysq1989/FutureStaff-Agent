@@ -34,6 +34,16 @@ function publicAddress(address: string): boolean {
   }
   return isIP(address) === 6 && /^[23]/.test(address) && !address.toLowerCase().startsWith('2001:db8:')
 }
+function proxyDnsAlias(address: string): boolean {
+  return isIP(address) === 4 && /^198\.(18|19)\./.test(address)
+}
+function usesRemoteDnsProxy(proxy: string): boolean {
+  const routes = proxy.split(';').map(route => route.trim()).filter(Boolean)
+  return routes.length > 0 && routes.every(route => {
+    const match = /^(PROXY|HTTPS|SOCKS5) (?:\[[0-9a-f:]+\]|[a-z0-9.-]+):([0-9]{1,5})$/i.exec(route)
+    return !!match && Number(match[2]) > 0 && Number(match[2]) <= 65535
+  })
+}
 function navigationAllowed(raw: string, target: string): boolean {
   if (!publicHttps(raw)) return false
   const url = new URL(raw)
@@ -47,6 +57,7 @@ export class DesktopSystemViews {
   private clearing = new Map<string, Promise<void>>()
   private disposed = false
   private guardedSessions = new WeakSet<Session>()
+  private proxyTargets = new WeakMap<Session, string>()
   constructor(private window: BrowserWindow, private shellOrigin: string, private resolve: SystemViewResolver) {
     ipcMain.handle(SYSTEM_VIEW_CHANNEL, (event, input: unknown) => this.request(event, input))
   }
@@ -78,6 +89,7 @@ export class DesktopSystemViews {
   }
   private create(id: string, target: SystemViewTarget): Guest {
     const isolated = session.fromPartition(this.partition(id, target.owner))
+    this.proxyTargets.set(isolated, target.url)
     if (!this.guardedSessions.has(isolated)) {
       this.guardedSessions.add(isolated)
       isolated.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
@@ -85,8 +97,18 @@ export class DesktopSystemViews {
       isolated.webRequest.onBeforeRequest((details, callback) => {
         if (!publicHttps(details.url)) { callback({ cancel: true }); return }
         // DNS names are insufficient: deny a public-looking host that resolves locally.
-        void isolated.resolveHost(new URL(details.url).hostname).then(result => {
-          callback({ cancel: !result.endpoints.length || result.endpoints.some(endpoint => !publicAddress(endpoint.address)) })
+        void isolated.resolveHost(new URL(details.url).hostname).then(async result => {
+          const addresses = result.endpoints.map(endpoint => endpoint.address)
+          if (!addresses.length) { callback({ cancel: true }); return }
+          if (addresses.every(publicAddress)) { callback({ cancel: false }); return }
+          // A configured HTTP/SOCKS5 proxy resolves the authorized public hostname
+          // remotely. Its TUN DNS alias is not a LAN destination; never extend this
+          // exception to other private ranges, arbitrary hosts or DIRECT fallback.
+          const authorized = this.proxyTargets.get(isolated)
+          const alias = addresses.every(address => publicAddress(address) || proxyDnsAlias(address))
+          const proxied = alias && authorized && navigationAllowed(details.url, authorized)
+            && usesRemoteDnsProxy(await isolated.resolveProxy(details.url))
+          callback({ cancel: !proxied })
         }).catch(() => callback({ cancel: true }))
       })
       isolated.on('will-download', event => event.preventDefault())

@@ -81,6 +81,24 @@ describe('native embedded system views', () => {
     finish({owner:'env:tenant:user',url:'https://erp.fsstory.net/',signal:f.signal.signal})
     expect((await showing).ok).toBe(false);expect(native.views).toHaveLength(0)
   })
+  it('accepts a configured proxy DNS alias only for the authorized business origin, retaining private-network blocks',async()=>{
+    const f=fixture();await f.invoke(f.show)
+    const ses=[...native.sessions.values()][0],guard=ses.webRequest.onBeforeRequest.mock.calls[0][0]
+    ses.resolveProxy=vi.fn(async()=> 'PROXY 127.0.0.1:7897')
+    const check=async(url:string,address:string)=>{
+      ses.resolveHost.mockResolvedValueOnce({endpoints:[{address}]})
+      const callback=vi.fn();guard({url},callback);await vi.waitFor(()=>expect(callback).toHaveBeenCalledOnce())
+      return callback.mock.calls[0]?.[0]?.cancel
+    }
+    expect(await check('https://erp.fsstory.net/api/auth/module-session','198.18.0.98')).toBe(false)
+    expect(await check('https://untrusted.example/api','198.18.0.98')).toBe(true)
+    for(const address of ['127.0.0.1','10.0.0.1','192.168.1.1','169.254.169.254'])expect(await check('https://erp.fsstory.net/api',address)).toBe(true)
+    ses.resolveProxy.mockResolvedValue('DIRECT')
+    expect(await check('https://erp.fsstory.net/api','198.18.0.98')).toBe(true)
+    ses.resolveProxy.mockResolvedValue('PROXY 127.0.0.1:7897; DIRECT')
+    expect(await check('https://erp.fsstory.net/api','198.18.0.98')).toBe(true)
+    f.manager.dispose()
+  })
   it('uses a new partition when Host identity changes and hide invalidates pending shows', async () => {
     const f=fixture();await f.invoke(f.show)
     const oldSession=[...native.sessions.values()][0], oldView=native.views[0]

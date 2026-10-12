@@ -41,7 +41,9 @@ test('product UI decorates real native registry entries without redeclaring chil
   assert.equal(conversation.locale, 'conversation')
   assert.notEqual(sidebar.component, Original)
   const main = conversation.component({ t: key => `original:${key}`, renderSlot: () => null })
-  const hero = main.props.chat.type(main.props.chat.props)
+  let hero=main.props.chat
+  for(let depth=0;hero.type!==Original&&depth<8;depth++)hero=hero.type(hero.props)
+  assert.equal(hero.type,Original)
   assert.equal(hero.props.t('hero.headline'), 'FutureStaff Agent')
   assert.equal(hero.props.t('hero.preview'), '')
   assert.equal(hero.props.t('placeholder.hero'), 'original:placeholder.hero')

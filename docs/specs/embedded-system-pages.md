@@ -90,3 +90,9 @@ D:/项目/.codex-build/embedded-systems-local-20261010/.
 Use rollback-runtime.mjs only with the client stopped. It restores the original
 archive/changed files and removes only newly introduced files within checked
 native/platform roots. Unrelated source work remains untouched.
+
+## 2026-10-12 系统代理虚拟 DNS 兼容
+
+已复现系统 HTTP 代理启用时，授权业务域名由本机 DNS 返回 198.18/15 虚拟地址，原守卫错误阻断了加载。现在仅在目标是 Host 服务端授权 URL 或既有认证站点、DNS 结果只含公共地址或该虚拟段、浏览器解析结果为显式 HTTP/HTTPS/SOCKS5 代理且无 DIRECT 回退时识别代理传输。实际回环、私网和链路本地地址、任意其他域名仍拒绝；没有修改机器代理、用户凭据或站点设置。Session 复用时更新授权目标，防止继续信任旧域名。
+
+回归先失败再修复，9 项通过；真实 ERP、Hub、Shop、AI、Visa、GEO 均加载且不用重输密码，会话用户/主体匹配，原生页签复用，Guest 无 Node/Agent bridge。原始证据在 D:/项目/.codex-build/agent-v3-repair-20261012/final-acceptance.json，当前安装包发布前还需扩大门禁和精确源码审查。

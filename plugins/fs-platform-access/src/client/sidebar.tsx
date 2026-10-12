@@ -76,7 +76,7 @@ function SystemIcon({id}:{id:string}) {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[id]??paths.hub}/></svg>
 }
 
-export function createAccountSidebar(controller: SidebarAccountController,pages?:SystemPages) {
+export function createAccountSidebar(controller: SidebarAccountController,pages?:SystemPages,onNewSession?:()=>void) {
   return function FutureStaffAccountSidebar({ collapsed, startSession, toggleSidebar, renderSlot }: SidebarRootComponentProps) {
     const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
     const identity = sidebarIdentity(snapshot)
@@ -125,7 +125,7 @@ export function createAccountSidebar(controller: SidebarAccountController,pages?
         <button type="button" role="tab" id="fs-menu-tab" aria-label="系统" title="系统" tabIndex={tab === 'menu' ? 0 : -1} aria-controls="fs-menu-panel" aria-selected={tab === 'menu'} onClick={() => { chooseTab('menu') }}>{collapsed?<SystemIcon id="hub"/>:'系统'}</button>
       </div>
       <section key={`sessions:${snapshot.activeTenantId ?? 'signed-out'}`} className="fs-sidebar-region" id="fs-sessions-panel" role="tabpanel" aria-labelledby="fs-sessions-tab" hidden={tab !== 'sessions'}>
-        <button type="button" className="fs-sidebar-new" aria-label="新会话" onClick={() => { pages?.select('sessions');startSession() }}>{collapsed ? '+' : '+ 新会话'}</button>
+        <button type="button" className="fs-sidebar-new" aria-label="新会话" onClick={() => { pages?.select('sessions');if(onNewSession)onNewSession();else startSession() }}>{collapsed ? '+' : '+ 新会话'}</button>
         {renderSlot('sidebar.workspaces', { wide: !collapsed, expandSidebar: () => { if (collapsed) toggleSidebar() } })}
       </section>
       <section key={`menu:${snapshot.activeTenantId ?? 'signed-out'}`} className="fs-sidebar-region fs-sidebar-menu" id="fs-menu-panel" role="tabpanel" aria-labelledby="fs-menu-tab" hidden={tab !== 'menu'}>

@@ -3,7 +3,7 @@ import type { PlatformAccessSnapshot } from '../controller.js'
 
 export interface DesktopAgentCard { agentId:string;name:string;description:string;available:boolean;unavailableReason:string|null;path:string }
 interface SessionList { current?:string;ids:readonly string[];byId:Record<string,{title?:string;cwd?:string;blank?:boolean}> }
-interface Workspace {workspaceId:string;path:string;sessionIds:readonly string[]}
+interface Workspace {workspaceId:string;path:string;title?:string;sessionIds:readonly string[]}
 interface BrowserProps {
   useSessions<T>(select:(state:SessionList)=>T):T
   useWorkspaces<T>(select:(state:{items:readonly Workspace[];archivedSessionIds:readonly string[]})=>T):T
@@ -14,7 +14,11 @@ interface BrowserProps {
 }
 interface PickerProps {open:boolean;onClose():void;onPick(id:string):void;createWorkspace(input:{path:string}):Promise<Workspace>}
 interface Controller {subscribe(listener:()=>void):()=>void;getSnapshot():PlatformAccessSnapshot}
-const normalize=(p:string)=>p.replaceAll('\\','/').replace(/\/$/,'').toLowerCase()
+export function createAgentNavigation(){
+  let selecting=false;const listeners=new Set<()=>void>()
+  const update=(value:boolean)=>{if(selecting===value)return;selecting=value;for(const listener of listeners)listener()}
+  return {subscribe:(listener:()=>void)=>{listeners.add(listener);return()=>listeners.delete(listener)},getSnapshot:()=>selecting,begin:()=>update(true),finish:()=>update(false)}
+}
 async function request(route:string,body?:unknown,signal?:AbortSignal){
   const response=await fetch(`/_futurestaff/agents/${route}`,{
     method:body===undefined?'GET':'POST',headers:{'x-futurestaff-agent':'1','content-type':'application/json'},cache:'no-store',
@@ -26,6 +30,7 @@ async function request(route:string,body?:unknown,signal?:AbortSignal){
 const css=`
 .fs-agents{display:flex;flex-direction:column;gap:8px;min-height:0;color:var(--text-primary);font-size:13px}.fs-agents h3{font-size:13px;margin:8px 0}.fs-agents button{font:inherit;color:inherit;background:transparent;border:1px solid var(--border-default);border-radius:8px;padding:9px;text-align:left;cursor:pointer}.fs-agents button:hover{background:var(--bg-hover)}.fs-agents button:focus-visible{outline:2px solid var(--accent-primary)}.fs-agents button:disabled{cursor:default;opacity:.65}.fs-agent-choice{display:flex;flex-direction:column;gap:4px;width:100%}.fs-agent-choice[aria-current=true]{border-color:var(--accent-primary);background:var(--bg-active)}.fs-agents small,.fs-agents p{color:var(--text-secondary);margin:0;line-height:1.5}.fs-agent-list{display:flex;flex-direction:column;gap:6px;overflow:auto}.fs-agent-session[aria-current=page]{color:var(--accent-primary);background:var(--bg-active)}.fs-agents-dialog{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;background:color-mix(in srgb,var(--bg-primary) 75%,transparent);padding:24px}.fs-agents-dialog>.fs-agents{width:min(480px,100%);max-height:80vh;padding:20px;background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:12px}.fs-agents-header{display:flex;align-items:center;justify-content:space-between;gap:8px}.fs-agent-legacy{margin-top:12px}.fs-agents-error{color:var(--error)!important}.fs-agents-data{overflow-wrap:anywhere;font-size:11px}
 .fs-agents .fs-agent-choice{height:auto;min-height:68px;flex-shrink:0;overflow:hidden;align-items:stretch}.fs-agent-choice small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-height:3em;overflow:hidden;overflow-wrap:anywhere}.fs-agent-choice strong{overflow-wrap:anywhere}
+.fs-agent-browser{flex:1;overflow:hidden}.fs-agent-browser h3{flex-shrink:0}.fs-agent-search{flex-shrink:0;box-sizing:border-box;width:100%;font:inherit;color:var(--text-primary);background:var(--bg-primary);border:1px solid var(--border-default);border-radius:6px;padding:8px}.fs-agent-browser>.fs-agent-list{flex:1;min-height:0}.fs-agent-session{display:flex;flex-direction:column;gap:3px;flex-shrink:0;min-width:0;width:100%}.fs-agent-session span,.fs-agent-session small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fs-agent-home{box-sizing:border-box;height:100%;padding:clamp(20px,4vw,48px);overflow:auto;background:var(--bg-primary)}.fs-agent-home-content{width:100%;max-width:1000px;margin:0 auto}.fs-agent-home h1{margin:0 0 8px;font-size:26px;font-weight:600;line-height:1.4}.fs-agent-home .fs-agent-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:12px;margin-top:24px;overflow:visible}.fs-agent-home .fs-agent-choice{padding:16px;min-height:108px;text-align:left}.fs-agent-home .fs-agent-choice strong{font-size:15px}.fs-agent-home [role=status],.fs-agent-home [role=alert]{margin-top:16px}.fs-agents-dialog>.fs-agents{height:auto}
 `
 function useCatalog(controller:Controller){
   const identity=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot)
@@ -57,42 +62,61 @@ function useOperationSignal(owner:string, enabled=true){
   },[owner,enabled])
   return operation
 }
-export function createAgentBrowser(controller:Controller,Legacy:ComponentType<BrowserProps>){
+export function createAgentBrowser(controller:Controller,_Legacy:ComponentType<BrowserProps>,navigation?:ReturnType<typeof createAgentNavigation>){
   return function AgentBrowser(props:BrowserProps){
-    const {items,directory,error:catalogError,refresh,owner}=useCatalog(controller)
+    const identity=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot)
     const sessions=props.useSessions(value=>value)
     const workspaces=props.useWorkspaces(value=>value)
-    const [chosen,setChosen]=useState('');const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [legacy,setLegacy]=useState(false)
-    const operation=useOperationSignal(owner)
-    const current=sessions.current?sessions.byId[sessions.current]:undefined
-    const active=items.find(agent=>current?.cwd&&normalize(agent.path)===normalize(current.cwd))??items.find(agent=>agent.agentId===chosen)
-    useEffect(()=>{setChosen('');setError('');setLegacy(false);setBusy(false)},[owner])
+    const [query,setQuery]=useState('')
+    useEffect(()=>setQuery(''),[identity.activeTenantId,identity.user?.userId])
+    const visible=sessions.ids.filter(id=>!workspaces.archivedSessionIds.includes(id)&&sessions.byId[id]
+      &&(!sessions.byId[id]?.blank||id===sessions.current))
+    const rows=visible.map(id=>({id,title:sessions.byId[id]?.title||'新会话',workspace:workspaces.items.find(w=>w.sessionIds.includes(id))}))
+      .filter(row=>`${row.title} ${row.workspace?.title??''}`.toLowerCase().includes(query.toLowerCase()))
+    return <div className="fs-agents fs-agent-browser"><style>{css}</style><h3>最近会话</h3>
+      <input className="fs-agent-search" aria-label="搜索会话" placeholder="搜索会话" value={query} onChange={event=>setQuery(event.target.value)}/>
+      {['ready','no_apps'].includes(identity.phase)?<div className="fs-agent-list">{rows.map(row=><button type="button" className="fs-agent-session" key={row.id} aria-current={sessions.current===row.id?'page':undefined} onClick={()=>{navigation?.finish();props.open(row.id)}}>
+        <span>{row.title}</span><small>{row.workspace?.title||'历史会话'}</small>
+      </button>)}{!rows.length&&<small>{query?'没有匹配的会话':'暂无会话，点击新会话开始。'}</small>}</div>:<small>登录后查看会话。</small>}
+    </div>
+  }
+}
+export function createAgentHome(controller:Controller){
+  return function AgentHome(props:{createWorkspace(input:{path:string}):Promise<Workspace>;onPick(id:string):void|Promise<void>}){
+    const {items,error:catalogError,refresh,owner}=useCatalog(controller)
+    const operation=useOperationSignal(owner);const[busy,setBusy]=useState(false);const[error,setError]=useState('')
+    useEffect(()=>{setBusy(false);setError('')},[owner])
     const choose=async(agent:DesktopAgentCard)=>{
-      const signal=operation.current.signal
-      setBusy(true);setError('')
-      try{
-        const selected=await request('select',{agentId:agent.agentId},signal)
-        signal.throwIfAborted()
-        const workspace=await props.createWorkspace({path:selected.path})
-        signal.throwIfAborted()
-        setChosen(agent.agentId);props.startSession(workspace.workspaceId)
-      }catch(reason){if(!signal.aborted)setError(reason instanceof Error?reason.message:'智能体工作区创建失败。')}finally{if(!signal.aborted)setBusy(false)}
+      const signal=operation.current.signal;setBusy(true);setError('')
+      try{const selected=await request('select',{agentId:agent.agentId},signal);signal.throwIfAborted()
+        const workspace=await props.createWorkspace({path:selected.path});signal.throwIfAborted();await props.onPick(workspace.workspaceId)
+      }catch(reason){if(!signal.aborted)setError(reason instanceof Error?reason.message:'智能体会话创建失败。')}
+      finally{if(!signal.aborted)setBusy(false)}
     }
-    const workspace=active?workspaces.items.find(item=>normalize(item.path)===normalize(active.path)):undefined
-    const visible=workspace?.sessionIds.filter(id=>!workspaces.archivedSessionIds.includes(id)&&sessions.byId[id])??[]
-    return <div className="fs-agents"><style>{css}</style>
-      <div className="fs-agents-header"><h3>选择智能体</h3><button type="button" onClick={refresh} disabled={busy}>刷新</button></div>
-      <Choices items={items} current={active?.agentId} busy={busy} choose={agent=>{void choose(agent)}}/>
-      {!!items.length&&<small>继承平台知识、技能与记忆；执行工具使用本机已授权能力。云端专属工具暂未接入。</small>}
-      {busy&&<p role="status">正在准备智能体知识与工作文件…</p>}
+    return <section className="fs-agents fs-agent-home" aria-label="新会话选择智能体"><style>{css}</style><div className="fs-agent-home-content">
+      <div className="fs-agents-header"><div><h1>开始新会话</h1><p>选择一个智能体，使用它的知识和技能开始工作。</p></div><button type="button" onClick={refresh} disabled={busy}>刷新</button></div>
+      <Choices items={items} busy={busy} choose={agent=>{void choose(agent)}}/>
+      {busy&&<p role="status">正在准备智能体会话…</p>}
       {!items.length&&!catalogError&&<p role="status">当前主体暂无可用智能体，请在平台端创建或授权。</p>}
       {(error||catalogError)&&<p role="alert" className="fs-agents-error">{error||catalogError}</p>}
-      {active&&<><h3>{active.name}的会话</h3>{workspace&&<button type="button" onClick={()=>props.startSession(workspace.workspaceId)}>＋ 新建会话</button>}
-        <div className="fs-agent-list">{visible.map(id=><button type="button" className="fs-agent-session" key={id} aria-current={sessions.current===id?'page':undefined} onClick={()=>props.open(id)}>{sessions.byId[id]?.title||'新会话'}</button>)}</div></>}
-      {directory&&<small className="fs-agents-data">本机数据位置：{directory}</small>}
-      <button type="button" className="fs-agent-legacy" aria-expanded={legacy} onClick={()=>setLegacy(value=>!value)}>历史工作区与会话</button>
-      {legacy&&<><small>保留旧数据；未绑定智能体的旧会话可查看，继续工作请选择智能体新建会话。</small>{createElement(Legacy,props)}</>}
-    </div>
+    </div></section>
+  }
+}
+export interface AgentConversationProps extends Record<string,unknown>{
+  useSessions<T>(select:(state:SessionList)=>T):T
+  selectWorkspace(id:string):Promise<void>
+}
+export function createAgentConversation(controller:Controller,navigation:ReturnType<typeof createAgentNavigation>,createWorkspace:BrowserProps['createWorkspace'],Original:ComponentType<Record<string,unknown>>){
+  const Home=createAgentHome(controller)
+  function Managed(props:AgentConversationProps){
+    const selecting=useSyncExternalStore(navigation.subscribe,navigation.getSnapshot,navigation.getSnapshot)
+    const identity=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot)
+    const current=props.useSessions(state=>state.current)
+    if(['ready','no_apps'].includes(identity.phase)&&(selecting||!current))return <Home createWorkspace={createWorkspace} onPick={async id=>{await props.selectWorkspace(id);navigation.finish()}}/>
+    return createElement(Original,props)
+  }
+  return function AgentConversation(props:AgentConversationProps){
+    return typeof props.useSessions==='function'&&typeof props.selectWorkspace==='function'?<Managed {...props}/>:createElement(Original,props)
   }
 }
 export function createAgentPicker(controller:Controller){
