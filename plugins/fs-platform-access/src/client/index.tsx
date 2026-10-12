@@ -1,4 +1,5 @@
 import { futureStaffLogoUrl, futureStaffAgentWordmarkPaths } from '../brand.js'
+import { applyErpClient } from './erp.js'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -16,6 +17,7 @@ import { modePresentation } from './modes.js'
 import { createAccountSidebar } from './sidebar.js'
 import { SystemPages, SystemMain } from './system-pages.js'
 export { SystemPages, SystemMain } from './system-pages.js'
+export { InteractionWindow, InteractionTable, interactionCss, type InteractionColumn } from './interaction.js'
 import { watchSlotComponents } from './slot-components.js'
 import { LoginPreferences } from '../login-preferences.js'
 import { AgentMarketSection } from './market.js'
@@ -533,6 +535,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'futurestaff-login-gate', order: -100,
   }, () => createElement(FutureStaffPlatformLoginGate, { controller })))
+  applyErpClient(ctx)
 }
 
 declare module '@deepseek-ai/cordis' { interface Context { platformClientSession: PlatformDevClientController;platformSystemPages:SystemPages } }

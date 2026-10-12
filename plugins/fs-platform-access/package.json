@@ -15,6 +15,10 @@
       "default": "./lib/client.js"
     },
     "./package.json": "./package.json",
+    "./interaction": {
+      "types": "./lib/interaction.d.ts",
+      "default": "./lib/interaction.js"
+    },
     "./managed-settings": {
       "types": "./lib/managed-settings.d.ts",
       "default": "./lib/managed-settings.js"
@@ -25,6 +29,7 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-tool",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-theme",
         "@deepseek-ai/dsh-client-ui-settings"
@@ -43,6 +48,7 @@
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-ui-layout": "0.1.2-rc.1",
     "@deepseek-ai/dsh-client-ui-chat": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-tool": "0.1.2-rc.1",
     "@deepseek-ai/dsh-client-ui-renderer": "0.1.2-rc.1",
     "@deepseek-ai/dsh-client-ui-theme": "0.1.2-rc.1",
     "@deepseek-ai/dsh-client-ui-settings": "0.1.2-rc.1",

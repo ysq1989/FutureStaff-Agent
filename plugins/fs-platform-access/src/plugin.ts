@@ -4,6 +4,7 @@ import { roleRoot } from './market.js'
 import { RememberedLogin } from './remembered-login.js'
 import { DesktopLoginWorkspace, readWorkspaceIdentity, workspaceName, workspaceDirectory } from './workspace.js'
 import { mountAgents } from './agent-host.js'
+import { mountErp } from './erp-host.js'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
@@ -127,6 +128,7 @@ function mountDevLogin(ctx: Context, environment: PlatformEnvironment): void {
     pkce: new PlatformPkceTransaction({ environment }), api, vault,
   })
   const initialized = access.restore()
+  if (identity) mountErp(ctx, origin, async () => { await initialized; return access.authorizeTemplates() })
   const agents = identity ? mountAgents(ctx, origin, identity, workspaceDirectory(identity), async () => {
     await initialized
     return access.authorizeTemplates()

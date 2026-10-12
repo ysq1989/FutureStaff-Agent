@@ -107,7 +107,7 @@ test('client registers Settings access and a mandatory login gate', () => {
 
   applyClient({ slots })
 
-  assert.deepEqual(slotNames, ['sidebar.workspaces', 'conversation.hero.workspace', 'sidebar', 'sidebar.brand.mark', 'sidebar.brand.name', 'conversation.hero.brand.mark', 'conversation', 'conversation.hero.agentPreset', 'conversation.session.header.actions', 'settings.section', 'conversation.chat.node', 'settings.section', 'settings.section', 'shell.overlay'])
+  assert.deepEqual(slotNames, ['sidebar.workspaces', 'conversation.hero.workspace', 'sidebar', 'sidebar.brand.mark', 'sidebar.brand.name', 'conversation.hero.brand.mark', 'conversation', 'conversation.hero.agentPreset', 'conversation.session.header.actions', 'settings.section', 'conversation.chat.node', 'settings.section', 'settings.section', 'shell.overlay', 'tool.call.toolview', 'tool.call.toolview', 'tool.call.toolview', 'tool.call.toolview', 'shell.overlay', 'shell.overlay'])
   assert.deepEqual(registrations, [
     { name: 'sidebar.brand.mark', priority: -100 },
     { name: 'sidebar.brand.name', priority: -100 },
@@ -116,6 +116,12 @@ test('client registers Settings access and a mandatory login gate', () => {
     { name: 'settings.section', id: 'futurestaff-agent-market', order: -9, label: 'Agent 市场' },
     { name: 'settings.section', id: 'futurestaff-access', order: -10, label: 'FutureStaff' },
     { name: 'shell.overlay', id: 'futurestaff-login-gate', order: -100 },
+    { name: 'tool.call.toolview', key: 'call_erp_api' },
+    { name: 'tool.call.toolview', key: 'erp_query' },
+    { name: 'tool.call.toolview', key: 'erp_order_form' },
+    { name: 'tool.call.toolview', key: 'erp_prepare_action' },
+    { name: 'shell.overlay', id: 'futurestaff-erp-window', order: 20 },
+    { name: 'shell.overlay', id: 'futurestaff-erp-view-events', order: 19 },
   ])
   assert.ok(components.every(component => typeof component === 'function'))
   const mark = components[0]({ size: 24 })

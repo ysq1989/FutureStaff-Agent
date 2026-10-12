@@ -9,6 +9,7 @@ test('product UI decorates real native registry entries without redeclaring chil
   core.register({ name: 'root', children: {
     sidebar: single, conversation: single,
     'conversation.chat.node': { kind: 'keyed', scope: 'root' },
+    'tool.call.toolview': { kind: 'keyed', scope: 'session' },
     'settings.section': { kind: 'list', scope: 'root' },
     'shell.overlay': { kind: 'list', scope: 'root' },
   } }, () => null)
