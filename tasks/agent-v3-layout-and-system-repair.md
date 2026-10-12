@@ -21,3 +21,7 @@
 协调授权已收到：用户允许协调统一发布。姓名同步任务负责 Platform /desktop/v1/profile DEV/PROD 验证，本任务负责唯一正式 Agent 3.0.2 包和当前窗口升级。最终候选基于 f272c0549c 合并全部姓名同步代码与本次修复；无真实员工资料改写。
 
 合并版 npm run check 已完成：平台接入 181、Stable 1117、Beta 1032、Community 261、根检查 64 全部通过；Stable/Beta 各 13 项既有条件跳过。精确差异已从正确性、模块边界、私网防护、无凭据/资料改写、响应式布局和原生会话保留审查。原始完整日志 merged-full-check.log 保留。
+
+正式发布完成：源码 030f166f79eb7cc942c5729b40b76f4ff8a9d7a0，唯一 3.0.2 安装包 139859369 字节，SHA256 bf73a0c6c5911245c0d96e80cbc4a61824795e3143bd8bf779f545cae92a66b0。安装器结构校验通过、静默安装 exit 0、实际 PE 3.0.2.0/package 3.0.2；Alpha 和原生产成员产品接入 lib 已备份更新，生产 Profile 选择完全保留。姓名任务已确认 Platform PROD API 1.12.17/generation 27/schema 4，实际会话资料与官方姓名一致，未改员工数据。新客户端实际 session/refresh 200/ready、用户和主体一致；六系统再次 ALL_SIX_SYSTEMS_ACCEPTED；主区 13 个智能体、左栏 0 个选择卡片，1280/1024 和折叠布局无溢出。既有草稿存在时未覆盖或发送；早前空输入框草稿切换测试通过。
+
+公网 https://fsstory.net/desktop-updates/FutureStaff-Agent-3.0.2-x64-Setup.exe 已完整下载，HTTP 200、字节/SHA 与本机构建完全一致，immutable 缓存。继续手动安装交付，未更改原 Ed25519 信任或稳定自动更新 feed（原签名材料尚未恢复）。旧 3.0.1 安装包、资料选择和产品库备份保留可回退。证据根目录 D:/项目/.codex-build/agent-v3-repair-20261012，含 artifact.json、public-3.0.2-acceptance.json、profile-runtime-acceptance.json、final-acceptance.json、layout-current.json、responsive-acceptance.json、local-install/receipt.json。状态：完成。
