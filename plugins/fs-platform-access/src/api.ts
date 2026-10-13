@@ -87,11 +87,32 @@ function tenant(value: unknown, origin: string): Tenant {
   })
 }
 
-function application(value: unknown): AuthorizedApplication {
+function application(value: unknown, allowWebsiteManagement = false): AuthorizedApplication {
   if (!isRecord(value) || !isRecord(value.deepLinks) || !Array.isArray(value.capabilities)) {
     throw new Error('invalid application')
   }
-  assertKeys(value, ['appId', 'tenantId', 'displayName', 'baseUrl', 'deepLinks', 'capabilities', 'contractRange'])
+  const managementFields = ['canManage', 'applicationId', 'permissions', 'mcpUrl', 'tokenExchangePath']
+  assertKeys(value, ['appId', 'tenantId', 'displayName', 'baseUrl', 'deepLinks', 'capabilities', 'contractRange'],
+    allowWebsiteManagement ? managementFields : [])
+  if (managementFields.some(key => key in value)) {
+    const capabilities = value.capabilities
+    // Validate the known Website discovery extension, then project only the
+    // existing desktop fields. Management metadata never grants desktop access.
+    if (managementFields.some(key => !(key in value)) || value.appId !== 'web'
+      || value.applicationId !== 'futurestaff-web' || typeof value.canManage !== 'boolean'
+      || !Array.isArray(value.permissions) || value.permissions.length < 1 || value.permissions.length > 100
+      || value.permissions.some(permission => typeof permission !== 'string' || !capabilities.includes(permission))
+      || new Set(value.permissions).size !== value.permissions.length
+      || value.tokenExchangePath !== '/api/website-control/v1/agent-token') {
+      throw new Error('invalid website management projection')
+    }
+    const mcpUrl = new URL(requireHttpUrl(value, 'mcpUrl'))
+    const baseUrl = new URL(requireHttpUrl(value, 'baseUrl'))
+    if (mcpUrl.protocol !== 'https:' || mcpUrl.origin !== baseUrl.origin
+      || mcpUrl.pathname !== '/mcp' || mcpUrl.search || mcpUrl.hash) {
+      throw new Error('invalid website MCP endpoint')
+    }
+  }
   const appId = requireBoundedString(value, 'appId', 2, 64)
   if (!appIdPattern.test(appId)) throw new Error('invalid application id')
   const tenantId = requireUuid(value, 'tenantId')
@@ -244,7 +265,7 @@ abstract class PlatformApiClient {
       if (!isRecord(body) || !Array.isArray(body.items)) throw new Error('invalid application list')
       assertKeys(body, ['activeTenantId', 'items', 'meta'])
       const responseTenantId = requireUuid(body, 'activeTenantId')
-      const items = body.items.map(application)
+      const items = body.items.map(item => application(item, this.responseContract.version === PLATFORM_DEV_CONTRACT_VERSION))
       if (responseTenantId !== activeTenantId || items.some(item => item.tenantId !== activeTenantId)) {
         throw new Error('application response crossed the active tenant boundary')
       }
