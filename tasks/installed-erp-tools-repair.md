@@ -15,4 +15,6 @@ The running installation was 3.0.3 and both bundled and active-member plugin pac
 
 ## Release state
 
-Source validation complete. 3.0.5 installer build and publication acceptance pending. Preserve 3.0.4 and 3.0.2 artifacts for rollback and leave the signed update feed unchanged. Complete actual installed 3.0.5 authenticated acceptance and normal restart after publication.
+Completed: commit d801ee1902 pushed on main; immutable 3.0.5 installer published and full public download hash verified (85378732a812c30ab615ff67e2d3de03bb4b8b64126524c1deb469ce9b9d0297). Actual original installation upgraded to 3.0.5 and authenticated acceptance repeated: authoritative Chinese customer report/window gives 320 / 4 orders, no current-turn errors; sales form opens with Chinese candidates and no submission. Latest actual account screenshot and acceptance.json retained privately. Signed feed unchanged; 3.0.4 and 3.0.2 rollback installers retained.
+
+The report acceptance initially exposed legacy English draft data counting as effective business; fixed in ERP 23baddb with 183 exact-image isolated PostgreSQL tests and guarded PROD release. Platform 0f9c9273 adds secret-safe provider diagnostics. A historical intermittent provider failure remains unclassified; three latest post-release model/tool flows succeeded, which is not proof that the intermittent fault is eliminated. Temporary debug flags are removed in the final normal restart.
