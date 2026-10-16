@@ -448,3 +448,8 @@ this change. No goods imported/published. See `tasks/shop-recommendation-cards.m
 - 补充文档导航、克隆与依赖安装步骤、数据/凭据单独迁移清单。保存现有源码、脚本、测试、品牌和分项任务，无功能重写。
 - 验证：产品及 Stable 桌面构建、工作区/Stable 类型检查通过；Platform 299、GEO 12、根目录 64、嵌入页面 11 项通过。完整 check 的浏览器超时、桌面差异门禁及 package 版本断言失败均保留，详见 `docs/development-handoff.md`。
 - 交付性质：开发源码快照，不是可发布安装包；不部署、不改真实数据或线上凭据。
+# 2026-10-16 测试、CI 修复与 Agent 3.0.6 PROD 发布
+
+- 源码 `ee926bbd31e50ebde8ec040d60f5745aaf53b12f` 已提交推送；修复两项真实浏览器测试收尾、过期版本夹具、4 项桌面差异摘要，并补入已核验的 3.0.5 Profile 升级清单。
+- 完整 `npm run check` 退出 0：Stable 1119、Beta 1032、根目录 64 项及产品工作区检查通过；两版各 13 项原有条件跳过。Windows 打包专项 190 项及安装包验证通过。
+- 3.0.6 独立安装包已公开，完整 HTTPS 下载为 139,957,432 字节，SHA-256 `e24f14d64898422cd52d94cd8b1f13ff989d25b46fd85021455f1d10ca0f0f01`；保留 3.0.5，签名 feed 不变，不修改本机 Profile 或数据库。完整证据见 `tasks/ci-prod-release-20261016.md`。

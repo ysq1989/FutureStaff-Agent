@@ -1,11 +1,11 @@
 # 测试与 CI 修复、Agent PROD 交付
 
-- 状态：进行中；High Risk。
+- 状态：完成；High Risk。
 - 基线：main `f05d8ecc0c033c758242e55c510de53885c83cfb`，初始干净。
 - 用户授权：修复剩余测试和 CI，验证后提交推送并部署；Agent 无 DEV，直接 PROD。
 - 范围：复现抖音离线真实浏览器测试超时；修复收尾；将安装身份测试与当前版本契约对齐；逐项核对 Stable/Beta 差异及声明摘要；运行完整 check。
 - 边界：不弱化隔离、SSO、权限和发布门禁；无业务 Schema/数据迁移，不复制或清空用户 Profile；产品源码与本机安装物、线上发布源分别验收。
-- 验收：失败用例修复，完整门禁全绿；提交推送；版本单调、发布物/摘要与回滚记录可核验；PROD 入口与安装版验证。
+- 验收：失败用例修复，完整门禁全绿；提交推送；版本单调、发布物/摘要与回滚记录可核验；PROD 入口及实际解包应用/安装包字节验证。
 
 ## 修复与验证
 
@@ -19,7 +19,17 @@
 
 ## PROD 发布方案
 
-- 状态：验证完成，待从已提交的干净 main 构建 3.0.6 安装包并发布。
+- 状态：已从干净 main 构建并发布 PROD，外部完整下载验证通过。
 - 延续现网 3.0.5 的独立手动安装包下载方式，发布唯一的 3.0.6 EXE；不更换签名信任、不切换当前仍为 2.0.21 的 signed feed，不宣称软件内自动升级源已更新。
 - 上传前复核本机/远端源码 SHA；发布锁内对 signed feed 和 3.0.5 回退包做摘要 CAS，临时文件校验后原子公开新文件，保留旧包。发布后执行外部 HTTPS 完整下载与 SHA-256/字节数核对。
 - 后端/Web 本轮只有 CI 工具修复，不替换历史业务 API 或独立 Platform，不重启其他系统。桌面安装包不包含用户配置、会话或材料；本次不触碰旧电脑运行中的用户 Profile。
+
+## PROD 发布结果
+
+- 源码提交：`ee926bbd31e50ebde8ec040d60f5745aaf53b12f`；从已推送、干净 main 执行 `npm run installer:windows`，退出码 0。Windows 打包专项 12 文件/190 项、228 节点依赖闭包及最终安装包验证通过。
+- [下载 3.0.6](https://fsstory.net/desktop-updates/FutureStaff-Agent-3.0.6-x64-Setup.exe)：139,957,432 字节，SHA-256 `e24f14d64898422cd52d94cd8b1f13ff989d25b46fd85021455f1d10ca0f0f01`。
+- 外部 HTTPS GET 200，完整下载大小和 SHA-256 一致；并非只检查 HEAD/健康状态。解包应用 ProductName 为 FutureStaff Agent、FileVersion 为 3.0.6，5 个关键代码/品牌文件与构建一致，301 个 Profile 文件逐项验证。
+- Profile 清单摘要：`e763f7a426ccc357c4101cc4d985e30796c85e91b10a51da9b6836c0a8175ff8`。
+- 发布锁内校验现行 feed 与 3.0.5 包摘要后，以唯一文件名原子公开 3.0.6；[3.0.5 回退包](https://fsstory.net/desktop-updates/FutureStaff-Agent-3.0.5-x64-Setup.exe)保留并验证可下载。签名 feed 摘要仍为 `930f02bc02098ca94783b644db7261314bc07f5b6ef4385a420694746a6c93d3`，未切换软件内升级源。
+- 服务器收据：`/opt/futurestaff/prod/desktop-update-bundles/3.0.6/manual-artifact-receipt.json`。审计标签：`deploy/desktop/3.0.6-ee926bbd31`。
+- 回退方式：继续使用保留的 3.0.5 独立安装包；不覆盖历史安装包，不回滚数据库。当前旧电脑的运行安装版、登录状态和用户文件未改动。
