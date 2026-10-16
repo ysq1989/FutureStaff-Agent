@@ -2,6 +2,14 @@
 
 首次交接：2026-10-10；换机核对更新：2026-10-16。文档入口见 [开发文档导航](README.md)。
 
+2026-10-17 本机更新：权威 main 已同步至 `D:/项目/FutureStaff/FutureStaff Agent`，旧 `D:/项目/futurestaff-dsh` 仅保留为历史迁移来源。此前旧目录停留在 2026-10-10 的 2.0.21，不能继续作为版本基线。使用 `npm run desktop:dev` 构建并启动当前 3.0.6 客户端，开发 Profile、Harness 会话和 Electron 状态保存在新目录 `.dsh/` 下；智能体工作文件仍遵循既有成员目录策略，本次不迁移。本机 `.env` 不设置上游禁止的 `DSH_*` 启动变量，启动器从进程环境传入。
+
+Windows 本机校验需要使用临时目录的完整路径，避免 `ADMINI~1` 短路径与 Host 的规范路径比较失败。只在执行检查的 PowerShell 进程内设置 `$env:TEMP = node -e "process.stdout.write(require('node:fs').realpathSync.native(require('node:os').tmpdir()))"` 和 `$env:TMP = $env:TEMP`，不改系统环境或测试断言。GEO 固定发布源码使用仓库 `.gitattributes` 指定的 LF 字节，保持原 SHA-256 清单校验。
+
+新目录验证：根工作区类型检查通过；初次组合检查因上述换行及临时短路径夹具退出，修正环境后按失败与未执行范围补齐检查。GEO 12 项、平台 299 项、产品构建、完整桌面门禁和根目录 64 项全部通过；Stable 117 文件/1119 项、Beta 108 文件/1032 项通过，各保留 13 项原有平台条件跳过。实际启动构建后的 3.0.6 到新版登录页，开发窗口保留，未代用户登录或执行业务操作。证据保存在本机 `.local-checks/v306-*.log`，不上传原始运行日志。
+
+软件内签名升级源已于 2026-10-17 补齐至 3.0.6，外部签名及两个安装包完整摘要均已验证，3.0.5 回退包保留；详见[升级源发布记录](../tasks/in-app-update-306-20261016.md)。以下 2026-10-16 关于尚未切换 feed 的说明保留为当时历史状态。
+
 ## 仓库与范围
 
 权威客户端仓库为 `https://github.com/ysq1989/FutureStaff-Agent.git`，由原 `futurestaff-dsh` 重命名而来，保留原 Git 历史。原先误建的同名平台快照仓库已删除。

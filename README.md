@@ -4,6 +4,8 @@
 
 当前源码版本：`3.0.6`。本次测试修复和 PROD 发布状态见[交付记录](tasks/ci-prod-release-20261016.md)。下方 3.0 升级说明保留为历史设计背景。
 
+2026-10-17：软件内签名升级源已更新至 3.0.6，保留 3.0.5 回退包，见[升级源发布记录](tasks/in-app-update-306-20261016.md)。本机后续开发目录为 `D:/项目/FutureStaff/FutureStaff Agent`；安装依赖后运行 `npm run desktop:dev`，开发 Profile 和桌面数据分别保存在该目录 `.dsh/desktop-development`、`.dsh/desktop-dev-user-data`。
+
 ## Agent 3.0 升级（2026-10-11）
 
 开发版本 `3.0.0-rc.1`：从平台已授权的持久智能体开始对话，智能体下保留多次会话、知识与本机工作文件。新 Windows 安装的数据根为 `%LOCALAPPDATA%/FutureStaff Agent/`；已有数据路径保持兼容，不自动迁移。

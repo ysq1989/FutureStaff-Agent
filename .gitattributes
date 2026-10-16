@@ -1,0 +1,2 @@
+# These vendored files are verified byte-for-byte against a pinned SHA-256 manifest.
+plugins/fs-geo/publishing-source/** text eol=lf

@@ -453,3 +453,10 @@ this change. No goods imported/published. See `tasks/shop-recommendation-cards.m
 - 源码 `ee926bbd31e50ebde8ec040d60f5745aaf53b12f` 已提交推送；修复两项真实浏览器测试收尾、过期版本夹具、4 项桌面差异摘要，并补入已核验的 3.0.5 Profile 升级清单。
 - 完整 `npm run check` 退出 0：Stable 1119、Beta 1032、根目录 64 项及产品工作区检查通过；两版各 13 项原有条件跳过。Windows 打包专项 190 项及安装包验证通过。
 - 3.0.6 独立安装包已公开，完整 HTTPS 下载为 139,957,432 字节，SHA-256 `e24f14d64898422cd52d94cd8b1f13ff989d25b46fd85021455f1d10ca0f0f01`；保留 3.0.5，签名 feed 不变，不修改本机 Profile 或数据库。完整证据见 `tasks/ci-prod-release-20261016.md`。
+
+## 2026-10-17 新目录开发环境与 3.0.6 软件内升级源
+
+- 权威客户端 main 同步至 `D:/项目/FutureStaff/FutureStaff Agent`，根 npm、GEO Web 与桌面 Yarn 依赖安装完成；旧目录仅保留历史来源。纠正最初使用旧本机 2.0.21 快照的版本判断，2.0.22 准备未发布。
+- 新增 `npm run desktop:dev`，使用构建 Profile 和独立 Harness/Electron 状态。实际 3.0.6 开发窗口已到登录页。保留原业务数据目录策略，未代登录、迁移或执行业务操作。
+- GEO 8 个固定源码恢复 LF 字节并通过原始哈希清单；完整类型、产品测试/构建，以及规范临时目录下的桌面检查分项通过。Stable 1119、Beta 1032、根目录 64 项通过，原平台条件跳过数量未增加。详见 `docs/development-handoff.md`。
+- 原 Ed25519 密钥已匹配原信任，现有正式 3.0.6 包及 3.0.5 回退包进入签名 feed。持锁校验旧摘要、备份并原子切换后，外部客户端签名验证、两个包完整下载摘要和缓存策略通过。本机安装版未自动更新。详见 `tasks/in-app-update-306-20261016.md`。

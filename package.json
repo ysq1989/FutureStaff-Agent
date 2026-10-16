@@ -40,7 +40,9 @@
     "runner:issue-code": "node scripts/issue-runner-enrollment.mjs",
     "package:runner:windows": "npm run payload -w @futurestaff/local-runner-installer",
     "installer:runner:windows": "npm run package:runner:windows && npm run compile -w @futurestaff/local-runner-installer",
-    "douyin:profile": "npm run build -w @futurestaff/fs-core && npm run build -w @futurestaff/douyin-dm-mcp && node scripts/install-douyin-profile.mjs"
+    "douyin:profile": "npm run build -w @futurestaff/fs-core && npm run build -w @futurestaff/douyin-dm-mcp && node scripts/install-douyin-profile.mjs",
+    "predesktop:dev": "npm run release:profile && corepack yarn@4.18.0 --cwd desktop-shell workspace dsh-community-market build && corepack yarn@4.18.0 --cwd desktop-shell workspace dsh-plugin-desktop build",
+    "desktop:dev": "node scripts/start-desktop-dev.mjs"
   },
   "engines": {
     "node": ">=22"
