@@ -1,18 +1,18 @@
 {
   "version": 1,
-  "reviewedAt": "2026-10-12",
+  "reviewedAt": "2026-10-16",
   "review": "docs/specs/persistent-agents-v3-acceptance.md",
   "files": [
     {
       "path": "electron-runtime.ts",
-      "reason": "FutureStaff signed update confirmation uses its branded dialog; upstream Beta retains its original update UI.",
-      "stableSha256": "791287f127a9052f63919c667848749d148489518dc9a5b4a0e943ac1a908e5d",
+      "reason": "FutureStaff signed update confirmation uses its branded dialog; upstream Beta retains its original update UI. Product-only Shop broker delegates exact allowlisted calls into the existing isolated business session.",
+      "stableSha256": "8f0abbe552c18581a8cc8aa6cd9f372a2c16f790cc5b14b79719c6715c1298d4",
       "betaSha256": "497ba5cdb9e40582aa037fc195004ddab694d334ebe3ce4cdb5fc19d160f1c8c"
     },
     {
       "path": "electron-shell-generation.ts",
       "reason": "FutureStaff owns authenticated system views, exact module windows, renderer capability scopes and Windows workbench sizing.",
-      "stableSha256": "5a5610f3f4de773fc06cbc37811d73e3a9d63812076e7573e4254791748b099a",
+      "stableSha256": "7a5c6ba8d12688b0e69ed6a474ec8ee143150bd231848a69aca2473c0c68c975",
       "betaSha256": "5c930513cdc488893aabfffce7804dce66610f25df8c89da4823ec4693b68762"
     },
     {
@@ -60,7 +60,7 @@
     {
       "path": "runtime.ts",
       "reason": "Product-only authenticated system application resolver contract.",
-      "stableSha256": "2f3f4c4e9774e68b09ed4ccb428ecef4e2f3c75d641ec08a563bd78cee60a003",
+      "stableSha256": "b319a0429b90df491e782fa339de706524015e10b371cb1e2673b4397c8199e2",
       "betaSha256": "2faed92ff5ba80a8b33ec3585cea0c2dab02bf1c9caeb680732a5fbdf379bc78"
     },
     {
@@ -83,8 +83,8 @@
     },
     {
       "path": "system-views.ts",
-      "reason": "Product-only isolated authorized WebContentsView tabs with caller checks, revocation and private-address blocking.",
-      "stableSha256": "07229f52a0365221931d48197266c9db405b7905f96183532d45a12a66d588b9",
+      "reason": "Product-only isolated authorized WebContentsView tabs with caller checks, revocation and private-address blocking. Reviewed Shop session POST allowlist, owner revocation, and image-only GET CDN proxy handling.",
+      "stableSha256": "2d88261a62340c09ce6eedf16775ffff48bf3efd1a0f03025416561b9f855457",
       "betaSha256": null
     }
   ]

@@ -2,6 +2,8 @@
 
 新电脑开发请先阅读[换机交接](docs/development-handoff.md)与[文档导航](docs/README.md)。本仓库只保存桌面客户端；后端/Web 快照另存于私有仓库 `ysq1989/FutureStaff-Agent-web`。
 
+当前源码版本：`3.0.6`。本次测试修复和 PROD 发布状态见[交付记录](tasks/ci-prod-release-20261016.md)。下方 3.0 升级说明保留为历史设计背景。
+
 ## Agent 3.0 升级（2026-10-11）
 
 开发版本 `3.0.0-rc.1`：从平台已授权的持久智能体开始对话，智能体下保留多次会话、知识与本机工作文件。新 Windows 安装的数据根为 `%LOCALAPPDATA%/FutureStaff Agent/`；已有数据路径保持兼容，不自动迁移。

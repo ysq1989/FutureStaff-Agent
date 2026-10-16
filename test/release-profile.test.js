@@ -76,6 +76,13 @@ test('pins the release runtime and platform contract in the staged manifest', as
     assert.ok(result.releaseManifest.supersedes.includes(
       '6cd4850a729b7fb1b276db94334652d8d510c1c1065c9bb6c53790494c9cb20f',
     ))
+    // The public 3.0.5 package is the rollback/upgrade baseline for 3.0.6.
+    assert.ok(result.releaseManifest.supersedes.includes(
+      '62c6fa2331f6079ee944bbbd26fb55b49bbde66397d3b67d0bed4fd9b4cd9480',
+    ))
+    assert.ok(result.releaseManifest.workspacePreviousInventories.some(files =>
+      files['node_modules/@futurestaff/fs-platform-access/lib/api.js'] ===
+        '6cdf5f8951ff2c4ed5631ba341f139aa49839ec641cb66b19e27ba4b5810105a'))
   } finally {
     await rm(temporary, { recursive: true, force: true })
   }

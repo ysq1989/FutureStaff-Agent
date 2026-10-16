@@ -1,4 +1,4 @@
-import { unlinkSync } from 'node:fs'
+import { readFileSync, unlinkSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DesktopShellSpec } from '../src/runtime.ts'
@@ -52,6 +52,12 @@ const childProcess = vi.hoisted(() => {
 })
 
 const MAIN_WINDOW_STATE_PATH = '/tmp/dsh-desktop-user-data/main-window-state.json'
+const productVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version as string
+const newerVersion = (offset: number) => {
+  const [major, minor, patch] = productVersion.split('.').map(Number)
+  if (major === undefined || minor === undefined || patch === undefined) throw new Error('Invalid product version fixture')
+  return `${major}.${minor}.${patch + offset}`
+}
 
 function clearMainWindowState(): void {
   try {
@@ -327,10 +333,10 @@ describe('Electron desktop runtime', () => {
   ('handles prepared updates safely: %s', async action => {
     vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
     electron.app.isPackaged = true
-    const release = { version: '3.0.3', notes: 'Release notes', installer: {
+    const release = { version: newerVersion(1), notes: 'Release notes', installer: {
       url: 'https://fsstory.net/desktop-updates/setup.exe', sha256: 'a'.repeat(64), size: 100 } }
     preparedUpdate.prepare.mockResolvedValue('C:/private/verified-Setup.exe')
-    preparedUpdate.check.mockResolvedValue(action === 'feed-change' ? { ...release, version: '3.0.4' } : release)
+    preparedUpdate.check.mockResolvedValue(action === 'feed-change' ? { ...release, version: newerVersion(2) } : release)
     if (action === 'tamper') preparedUpdate.verify.mockRejectedValue(Error('UPDATE_HASH_REJECTED'))
     electron.dialog.showMessageBox.mockResolvedValue({ response: action === 'later' ? 1 : 0, checkboxChecked: false })
     const requestQuit = vi.fn()
@@ -1699,7 +1705,7 @@ describe('Electron desktop runtime', () => {
         appExecutable: process.execPath,
         electronVersion: '43.4.0',
         profileName: 'desktop',
-        productVersion: '3.0.2',
+        productVersion,
         profileDir: expect.stringMatching(/profiles[\\/]+desktop$/u),
         homeDir: expect.stringContaining('dsh-desktop-user-data'),
         spawn: expect.any(Function),
@@ -1735,7 +1741,7 @@ describe('Electron desktop runtime', () => {
     expect(diagnostics.export).toHaveBeenCalledWith(
       expect.stringContaining('dsh-desktop-user-data'),
       expect.objectContaining({
-        appVersion: '3.0.2',
+        appVersion: productVersion,
         crashDumpsDir: expect.stringMatching(/[\\/]Crashpad$/u),
       }),
     )
@@ -2043,7 +2049,7 @@ describe('Electron desktop runtime', () => {
     expect(runtime.updates).toMatchObject({
       isPackaged: false,
       canDownload: false,
-      currentVersion: '3.0.2',
+      currentVersion: productVersion,
       statePath: join('/tmp/dsh-desktop-user-data', 'updates', 'state.json'),
     })
     electron.app.isPackaged = true

@@ -1,5 +1,9 @@
 # Current task
 
+## 测试与 CI 修复、Agent PROD 交付（2026-10-16）
+
+当前任务见 [记录](ci-prod-release-20261016.md)。用户已授权验证后提交、推送并直接部署 Agent PROD；保留以下历史任务与验收边界。
+
 ## 2026-10-16 换机源码交接
 
 用户已授权保存后端/Web 与桌面客户端到独立 GitHub 仓库，并提交、推送现有开发成果。本仓库继续使用 `ysq1989/FutureStaff-Agent` 的 main；后端/Web 使用独立私有仓库 `ysq1989/FutureStaff-Agent-web`。本次不执行部署、发布、安装版更新、真实业务操作或数据迁移。范围、排除项和验证见 `docs/development-handoff.md`。

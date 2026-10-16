@@ -103,8 +103,10 @@ test('headless Chromium exercises outbound send and automatic reply against inte
       await inbox.cdp.evaluate(() => { document.querySelector('#account').dataset.secuid = 'other_account'; return true }, null)
       await assert.rejects(adapter.check(), /ACCOUNT_OR_PAGE_CHECK_FAILED/)
     } finally {
+      const exited = child.exitCode !== null ? Promise.resolve() : new Promise(resolve => child.once('exit', resolve))
+      await sessions[0]?.call('Browser.close').catch(() => {})
       adapter?.close(); for (const session of sessions) session.close()
-      const exited = new Promise(resolve => child.once('exit', resolve)); child.kill(); await Promise.race([exited, sleep(3000)])
+      if (child.exitCode === null) child.kill(); await Promise.race([exited, sleep(3000)])
       await rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     }
   })

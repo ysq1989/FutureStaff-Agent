@@ -130,7 +130,11 @@ test('real browser renders desktop/mobile views and loads evidence through the l
       assert.equal(await cdp.evaluate(()=>{const launcher=document.querySelector('[aria-label="打开线上选品中心"]');launcher.setAttribute('aria-label','打开选品中心');return getComputedStyle(launcher).backgroundColor},null),'rgba(0, 0, 0, 0)')
     }
   } finally {
-    cdp?.close(); const exited = new Promise(resolve => child.once('exit',resolve)); child.kill(); await Promise.race([exited,sleep(3000)])
-    await new Promise(resolve => server.close(resolve)); await service.close(); await rm(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200})
+    const exited = child.exitCode !== null ? Promise.resolve() : new Promise(resolve => child.once('exit',resolve))
+    // Ask Chromium to close its workers before removing their Windows profile files.
+    await cdp?.call('Browser.close').catch(() => {})
+    cdp?.close(); if (child.exitCode === null) child.kill(); await Promise.race([exited,sleep(3000)])
+    const closed = new Promise(resolve => server.close(resolve)); server.closeAllConnections(); await closed
+    await service.close(); await rm(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200})
   }
 })
