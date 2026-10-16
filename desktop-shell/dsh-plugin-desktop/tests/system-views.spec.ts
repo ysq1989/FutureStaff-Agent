@@ -42,6 +42,19 @@ describe('native embedded system views', () => {
     expect(native.views).toHaveLength(0)
     f.manager.dispose()
   })
+  it('Host broker uses the authorized Shop session without attaching a view or exposing arbitrary fetch IPC',async()=>{
+    const f=fixture()
+    f.resolver.mockResolvedValue({owner:'env:tenant:user',url:'https://shop-test.fsstory.net/',signal:f.signal.signal})
+    await f.manager.requestSystem('shop','/adminapi/platform_login',{method:'POST',body:'{}'})
+    const ses=[...native.sessions.values()][0]
+    expect(ses.fetch).toHaveBeenCalledWith('https://shop-test.fsstory.net/adminapi/platform_login',expect.objectContaining({redirect:'error',credentials:'include'}))
+    expect(f.window.contentView.addChildView).not.toHaveBeenCalled()
+    for(const path of ['/adminapi/users','https://evil.example/','//evil.example/adminapi/dsh/mcp'])await expect(f.manager.requestSystem('shop',path,{method:'POST'})).rejects.toThrow('SYSTEM_REQUEST_DENIED')
+    f.signal.abort()
+    await expect(f.manager.requestSystem('shop','/adminapi/dsh/mcp',{method:'POST'})).rejects.toThrow('SYSTEM_VIEW_REVOKED')
+    expect(ses.clearStorageData).toHaveBeenCalled()
+    f.manager.dispose()
+  })
   it('keeps one isolated view per system, detaches when hidden and revokes storage on auth loss', async () => {
     const f = fixture()
     expect((await f.invoke(f.show)).ok).toBe(true)
@@ -97,6 +110,51 @@ describe('native embedded system views', () => {
     expect(await check('https://erp.fsstory.net/api','198.18.0.98')).toBe(true)
     ses.resolveProxy.mockResolvedValue('PROXY 127.0.0.1:7897; DIRECT')
     expect(await check('https://erp.fsstory.net/api','198.18.0.98')).toBe(true)
+    f.manager.dispose()
+  })
+  it('loads Hub and Shop album images through proxy DNS aliases without allowing other destinations or request types',async()=>{
+    const f=fixture()
+    f.resolver.mockResolvedValue({owner:'env:tenant:user',url:'https://product.fsstory.net/product-hub/products',signal:f.signal.signal})
+    await f.invoke(f.show)
+    const ses=[...native.sessions.values()][0],guard=ses.webRequest.onBeforeRequest.mock.calls[0][0]
+    ses.resolveProxy=vi.fn(async()=> 'PROXY 127.0.0.1:7897')
+    const image={url:'https://xcimg.szwego.com/imgHD/example.jpg',resourceType:'image',method:'GET',referrer:'https://product.fsstory.net/product-hub/products'}
+    const check=async(details:Record<string,string>,addresses=['198.18.0.34'])=>{
+      ses.resolveHost.mockResolvedValueOnce({endpoints:addresses.map(address=>({address}))})
+      const callback=vi.fn();guard(details,callback);await vi.waitFor(()=>expect(callback).toHaveBeenCalledOnce())
+      return callback.mock.calls[0]?.[0]?.cancel
+    }
+    expect(await check(image)).toBe(false)
+    expect(await check(image,['8.8.8.8','198.18.0.34'])).toBe(false)
+    for(const resourceType of ['mainFrame','subFrame','script','xhr','other']) expect(await check({...image,resourceType})).toBe(true)
+    expect(await check({...image,method:'POST'})).toBe(true)
+    for(const url of ['https://untrusted.example/a.jpg','https://xcimg.szwego.com.evil.example/a.jpg']) expect(await check({...image,url})).toBe(true)
+    for(const referrer of ['','https://untrusted.example/','https://platform.fsstory.net/']) expect(await check({...image,referrer})).toBe(true)
+    for(const address of ['127.0.0.1','10.0.0.1','192.168.1.1','169.254.169.254']) expect(await check(image,[address])).toBe(true)
+    expect(await check(image,['198.18.0.34','10.0.0.1'])).toBe(true)
+    for(const proxy of ['DIRECT','PROXY 127.0.0.1:7897; DIRECT']){
+      ses.resolveProxy.mockResolvedValue(proxy);expect(await check(image)).toBe(true)
+    }
+    ses.resolveProxy.mockResolvedValue('SOCKS5 127.0.0.1:7897')
+    expect(await check(image)).toBe(false)
+    f.resolver.mockResolvedValue({owner:'env:tenant:user',url:'https://erp.fsstory.net/erp',signal:f.signal.signal})
+    await f.invoke(f.show)
+    expect(await check(image)).toBe(true)
+    f.resolver.mockResolvedValue({owner:'env:tenant:user',url:'https://product-dev.fsstory.net/product-hub/products',signal:f.signal.signal})
+    await f.invoke(f.show)
+    expect(await check({...image,referrer:'https://product-dev.fsstory.net/product-hub/products'})).toBe(false)
+    expect(await check(image)).toBe(true)
+    f.resolver.mockResolvedValue({owner:'env:tenant:user',url:'https://shop-test.fsstory.net/admin/product/selection_center',signal:f.signal.signal})
+    await f.invoke(f.show)
+    const shopImage={...image,referrer:'https://shop-test.fsstory.net/admin/product/selection_center'}
+    expect(await check(shopImage)).toBe(false)
+    expect(await check(image)).toBe(true)
+    for(const resourceType of ['mainFrame','subFrame','script','xhr','other']) expect(await check({...shopImage,resourceType})).toBe(true)
+    expect(await check({...shopImage,method:'POST'})).toBe(true)
+    for(const referrer of ['','https://untrusted.example/','https://shop-test.fsstory.net.evil.example/']) expect(await check({...shopImage,referrer})).toBe(true)
+    for(const address of ['127.0.0.1','10.0.0.1','192.168.1.1','169.254.169.254']) expect(await check(shopImage,[address])).toBe(true)
+    ses.resolveProxy.mockResolvedValue('DIRECT')
+    expect(await check(shopImage)).toBe(true)
     f.manager.dispose()
   })
   it('uses a new partition when Host identity changes and hide invalidates pending shows', async () => {

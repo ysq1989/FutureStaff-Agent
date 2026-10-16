@@ -10,6 +10,7 @@ interface BrowserProps {
   createWorkspace(input:{path:string}):Promise<Workspace>
   startSession(workspaceId?:string):void
   open(id:string):void
+  archiveSession(id:string):Promise<void>
   wide:boolean
 }
 interface PickerProps {open:boolean;onClose():void;onPick(id:string):void;createWorkspace(input:{path:string}):Promise<Workspace>}
@@ -31,6 +32,12 @@ const css=`
 .fs-agents{display:flex;flex-direction:column;gap:8px;min-height:0;color:var(--text-primary);font-size:13px}.fs-agents h3{font-size:13px;margin:8px 0}.fs-agents button{font:inherit;color:inherit;background:transparent;border:1px solid var(--border-default);border-radius:8px;padding:9px;text-align:left;cursor:pointer}.fs-agents button:hover{background:var(--bg-hover)}.fs-agents button:focus-visible{outline:2px solid var(--accent-primary)}.fs-agents button:disabled{cursor:default;opacity:.65}.fs-agent-choice{display:flex;flex-direction:column;gap:4px;width:100%}.fs-agent-choice[aria-current=true]{border-color:var(--accent-primary);background:var(--bg-active)}.fs-agents small,.fs-agents p{color:var(--text-secondary);margin:0;line-height:1.5}.fs-agent-list{display:flex;flex-direction:column;gap:6px;overflow:auto}.fs-agent-session[aria-current=page]{color:var(--accent-primary);background:var(--bg-active)}.fs-agents-dialog{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;background:color-mix(in srgb,var(--bg-primary) 75%,transparent);padding:24px}.fs-agents-dialog>.fs-agents{width:min(480px,100%);max-height:80vh;padding:20px;background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:12px}.fs-agents-header{display:flex;align-items:center;justify-content:space-between;gap:8px}.fs-agent-legacy{margin-top:12px}.fs-agents-error{color:var(--error)!important}.fs-agents-data{overflow-wrap:anywhere;font-size:11px}
 .fs-agents .fs-agent-choice{height:auto;min-height:68px;flex-shrink:0;overflow:hidden;align-items:stretch}.fs-agent-choice small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-height:3em;overflow:hidden;overflow-wrap:anywhere}.fs-agent-choice strong{overflow-wrap:anywhere}
 .fs-agent-browser{flex:1;overflow:hidden}.fs-agent-browser h3{flex-shrink:0}.fs-agent-search{flex-shrink:0;box-sizing:border-box;width:100%;font:inherit;color:var(--text-primary);background:var(--bg-primary);border:1px solid var(--border-default);border-radius:6px;padding:8px}.fs-agent-browser>.fs-agent-list{flex:1;min-height:0}.fs-agent-session{display:flex;flex-direction:column;gap:3px;flex-shrink:0;min-width:0;width:100%}.fs-agent-session span,.fs-agent-session small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fs-agent-home{box-sizing:border-box;height:100%;padding:clamp(20px,4vw,48px);overflow:auto;background:var(--bg-primary)}.fs-agent-home-content{width:100%;max-width:1000px;margin:0 auto}.fs-agent-home h1{margin:0 0 8px;font-size:26px;font-weight:600;line-height:1.4}.fs-agent-home .fs-agent-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:12px;margin-top:24px;overflow:visible}.fs-agent-home .fs-agent-choice{padding:16px;min-height:108px;text-align:left}.fs-agent-home .fs-agent-choice strong{font-size:15px}.fs-agent-home [role=status],.fs-agent-home [role=alert]{margin-top:16px}.fs-agents-dialog>.fs-agents{height:auto}
+.fs-agent-browser{gap:12px}.fs-agent-browser h3{margin:0;padding:0 8px;font-size:11px;font-weight:500;color:var(--text-secondary)}
+.fs-agent-search-wrap{display:flex;align-items:center;gap:8px;flex-shrink:0;box-sizing:border-box;height:36px;margin:2px;padding:0 10px;border:1px solid var(--border-default);border-radius:8px;background:var(--bg-primary);transition:border-color .15s,box-shadow .15s}.fs-agent-search-wrap>svg{flex:none;color:var(--text-secondary);pointer-events:none}.fs-agent-search-wrap:focus-within{border-color:var(--accent-primary);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent-primary) 14%,transparent)}.fs-agent-browser .fs-agent-search-wrap .fs-agent-search{flex:1;min-width:0;width:100%;height:100%;padding:0;border:0;border-radius:0;outline:none;box-shadow:none;background:transparent;font-size:12px;appearance:none}.fs-agent-browser .fs-agent-search-wrap .fs-agent-search:focus{outline:0!important;box-shadow:none!important}.fs-agent-search::placeholder{color:var(--text-secondary)}
+.fs-agent-browser>.fs-agent-list{gap:2px;scrollbar-width:thin;scrollbar-color:var(--border-default) transparent;padding:2px}.fs-agent-session-row{position:relative;display:flex;align-items:center;flex-shrink:0;min-width:0;border-radius:7px}.fs-agent-session-row:hover,.fs-agent-session-row:focus-within{background:var(--bg-hover)}.fs-agent-session-row:has([aria-current=page]){background:var(--bg-active)}.fs-agent-session-row:has([aria-current=page]):before{content:'';position:absolute;left:0;top:12px;bottom:12px;width:2px;border-radius:2px;background:var(--accent-primary)}
+.fs-agent-browser .fs-agent-session{flex:1;width:100%;border:0;background:transparent;padding:9px 36px 9px 12px;gap:4px;min-height:54px;box-sizing:border-box}.fs-agent-browser .fs-agent-session:hover,.fs-agent-browser .fs-agent-session[aria-current=page]{background:transparent}.fs-agent-session span{font-size:13px;line-height:18px}.fs-agent-session small{font-size:11px;line-height:15px}.fs-agent-session[aria-current=page] span{font-weight:600}
+.fs-agent-session-row .fs-agent-archive{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:28px;height:28px;min-height:28px;padding:0;border:0;border-radius:5px;color:var(--text-secondary);opacity:0;transition:opacity 120ms}.fs-agent-session-row:hover .fs-agent-archive,.fs-agent-session-row:focus-within .fs-agent-archive,.fs-agent-archive:disabled{opacity:1}.fs-agent-archive svg{width:15px;height:15px}.fs-agent-empty{padding:20px 10px;text-align:center}
+@media(hover:none){.fs-agent-session-row .fs-agent-archive{opacity:1}}@media(prefers-reduced-motion:reduce){.fs-agent-session-row .fs-agent-archive{transition:none}}
 `
 function useCatalog(controller:Controller){
   const identity=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot)
@@ -68,16 +75,29 @@ export function createAgentBrowser(controller:Controller,_Legacy:ComponentType<B
     const sessions=props.useSessions(value=>value)
     const workspaces=props.useWorkspaces(value=>value)
     const [query,setQuery]=useState('')
+    const [archiving,setArchiving]=useState<string|null>(null)
+    const [archiveError,setArchiveError]=useState('')
+    const owner=['ready','no_apps'].includes(identity.phase)?`${identity.activeTenantId}:${identity.user?.userId}`:''
+    const operation=useOperationSignal(owner)
+    useEffect(()=>{setArchiving(null);setArchiveError('')},[owner])
+    const archive=async(id:string)=>{
+      if(archiving||!owner)return
+      const signal=operation.current.signal
+      setArchiving(id);setArchiveError('')
+      try{await props.archiveSession(id)}catch{if(!signal.aborted)setArchiveError('归档失败，请稍后重试。')}
+      finally{if(!signal.aborted)setArchiving(null)}
+    }
     useEffect(()=>setQuery(''),[identity.activeTenantId,identity.user?.userId])
     const visible=sessions.ids.filter(id=>!workspaces.archivedSessionIds.includes(id)&&sessions.byId[id]
       &&(!sessions.byId[id]?.blank||id===sessions.current))
     const rows=visible.map(id=>({id,title:sessions.byId[id]?.title||'新会话',workspace:workspaces.items.find(w=>w.sessionIds.includes(id))}))
       .filter(row=>`${row.title} ${row.workspace?.title??''}`.toLowerCase().includes(query.toLowerCase()))
     return <div className="fs-agents fs-agent-browser"><style>{css}</style><h3>最近会话</h3>
-      <input className="fs-agent-search" aria-label="搜索会话" placeholder="搜索会话" value={query} onChange={event=>setQuery(event.target.value)}/>
-      {['ready','no_apps'].includes(identity.phase)?<div className="fs-agent-list">{rows.map(row=><button type="button" className="fs-agent-session" key={row.id} aria-current={sessions.current===row.id?'page':undefined} onClick={()=>{navigation?.finish();props.open(row.id)}}>
+      <div className="fs-agent-search-wrap"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input className="fs-agent-search" type="search" aria-label="搜索会话" placeholder="搜索会话" value={query} onChange={event=>setQuery(event.target.value)}/></div>
+      {archiveError&&<p className="fs-agents-error" role="alert">{archiveError}</p>}
+      {['ready','no_apps'].includes(identity.phase)?<div className="fs-agent-list">{rows.map(row=><div className="fs-agent-session-row" key={row.id}><button type="button" className="fs-agent-session" title={row.title} aria-current={sessions.current===row.id?'page':undefined} onClick={()=>{navigation?.finish();props.open(row.id)}}>
         <span>{row.title}</span><small>{row.workspace?.title||'历史会话'}</small>
-      </button>)}{!rows.length&&<small>{query?'没有匹配的会话':'暂无会话，点击新会话开始。'}</small>}</div>:<small>登录后查看会话。</small>}
+      </button><button type="button" className="fs-agent-archive" aria-label={`归档会话：${row.title}`} aria-busy={archiving===row.id} title="归档会话，保留记录" disabled={archiving!==null} onClick={()=>{void archive(row.id)}}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v4H4z M6 8v12h12V8 M10 12h4"/></svg></button></div>)}{!rows.length&&<small className="fs-agent-empty">{query?'没有匹配的会话':'暂无会话，点击新会话开始。'}</small>}</div>:<small>登录后查看会话。</small>}
     </div>
   }
 }

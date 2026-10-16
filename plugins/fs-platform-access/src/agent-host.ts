@@ -3,6 +3,7 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import { AgentWorkspaceStore, fetchAgentData, type AgentCard, type AgentCredentials, type AgentSnapshot } from './agents.js'
 import type { WorkspaceIdentity } from './workspace.js'
 import path from 'node:path'
+import type {BusinessSystem} from './business-scope.js'
 
 /** Session cwd comes from the Host SessionStore, never the renderer. */
 export async function resolveSessionAgent(store: AgentWorkspaceStore, sessionId: string, cwd: string | undefined) {
@@ -66,5 +67,15 @@ export function mountAgents(ctx: Context, origin: string, identity: WorkspaceIde
       }catch{send(409,{error:'AGENT_UNAVAILABLE'})}
     }}),`futurestaff persistent agents ${suffix}`)
   }
-  return {store, resolveBinding}
+  const resolvePolicyBinding=async(sessionId:string)=>{
+    const binding=await resolveBinding(sessionId);if(!binding)return undefined
+    const snapshot=await fetchAgentData(origin,await authorize(),binding.agentId,fetcher) as AgentSnapshot
+    return {...binding,...(snapshot.businessSystems?{businessSystems:snapshot.businessSystems}:{})}
+  }
+  const authorizeBusiness=async(sessionId:string,system:BusinessSystem)=>{
+    const binding=await resolvePolicyBinding(sessionId)
+    if(!binding||binding.businessSystems&&!binding.businessSystems.includes(system))throw Error('AGENT_BUSINESS_SCOPE_DENIED')
+    return binding
+  }
+  return {store, resolveBinding,resolvePolicyBinding,authorizeBusiness}
 }

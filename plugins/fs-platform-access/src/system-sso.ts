@@ -11,6 +11,34 @@ export async function establishModuleSession(input: {
 }): Promise<boolean> {
   const origin = new URL(input.url).origin
   const environment = input.authority === 'https://platform.fsstory.net' ? 'prod' : 'dev'
+  if(input.appId==='web') {
+    const sessionUrl=`${origin}/api/website/session`
+    const matches=(value:{user?:{id?:string;tenantId?:string};realPlatformConnected?:boolean})=>
+      value.realPlatformConnected===true&&value.user?.id===input.userId&&value.user?.tenantId===input.tenantId
+    const current=await input.fetch(sessionUrl,{credentials:'include',cache:'no-store',signal:input.signal})
+    if(current.ok&&matches(await current.json()))return false
+    // Website owns the verifier/state cookie and consumes its own callback.
+    const start=await input.fetch(`${origin}/oauth/start`,{credentials:'include',redirect:'manual',cache:'no-store',signal:input.signal})
+    const location=start.headers.get('location')
+    if(!location)throw Error('SYSTEM_SSO_NOT_ENROLLED')
+    const authorization=new URL(location),params=authorization.searchParams,redirectUri=`${origin}/oauth/callback/futurestaff`
+    const keys=['client_id','redirect_uri','code_challenge_method','code_challenge','state']
+    if(authorization.origin!==input.authority||authorization.pathname!=='/login'||authorization.username||authorization.password||authorization.hash
+      ||keys.some(key=>params.getAll(key).length!==1)||params.get('client_id')!==`futurestaff-web-${environment}`
+      ||params.get('redirect_uri')!==redirectUri||params.get('code_challenge_method')!=='S256'
+      ||!/^[A-Za-z0-9_-]{43}$/.test(params.get('code_challenge')??'')||!/^[A-Za-z0-9_-]{32,128}$/.test(params.get('state')??''))throw Error('SYSTEM_SSO_CONTRACT_MISMATCH')
+    const result=await input.authorize('web',{clientId:params.get('client_id')!,redirectUri,codeChallenge:params.get('code_challenge')!,state:params.get('state')!})
+    const callback=new URL(result.redirectUrl)
+    if(callback.origin+callback.pathname!==redirectUri||callback.username||callback.password||callback.hash
+      ||callback.searchParams.getAll('state').length!==1||callback.searchParams.get('state')!==params.get('state')
+      ||callback.searchParams.getAll('code').length!==1||!callback.searchParams.get('code')||input.signal.aborted)throw Error('SYSTEM_SSO_CALLBACK_MISMATCH')
+    const exchange=await input.fetch(callback.href,{credentials:'include',redirect:'follow',cache:'no-store',signal:input.signal})
+    if(!exchange.ok||input.signal.aborted)throw Error('SYSTEM_SSO_EXCHANGE_FAILED')
+    const verified=await input.fetch(sessionUrl,{credentials:'include',cache:'no-store',signal:input.signal})
+    if(!verified.ok)throw Error('SYSTEM_SSO_EXCHANGE_FAILED')
+    if(!matches(await verified.json())||input.signal.aborted)throw Error('SYSTEM_SSO_CONTRACT_MISMATCH')
+    return true
+  }
   if(input.appId==='geo') {
     const current=await input.fetch(`${origin}/api/geo/v1/session`,{credentials:'include',cache:'no-store',signal:input.signal})
     if(current.ok){const value=await current.json() as {data?:{userId?:string;tenantId?:string}}

@@ -178,6 +178,8 @@ export interface DesktopShellSpec extends DesktopWindowConfig {
 
 /** Electron bootstrap capability supplied before the profile tree mounts. */
 export interface DesktopRuntime {
+  /** Host-only requests through the application's existing isolated SSO session. */
+  requestSystem?(appId:string,path:string,init:RequestInit):Promise<Response>
   /** Immutable launcher policy for the FutureStaff distribution; omitted by generic adapters. */
   readonly desktopPolicy?: DesktopSetupWizardSelection | undefined
   /** Current Electron platform. */

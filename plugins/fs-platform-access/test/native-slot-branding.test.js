@@ -8,6 +8,7 @@ test('product UI decorates real native registry entries without redeclaring chil
   const core = new SlotCore(), single = { kind: 'single', scope: 'root' }
   core.register({ name: 'root', children: {
     sidebar: single, conversation: single,
+    'conversation.view': { kind: 'list', scope: 'root' },
     'conversation.chat.node': { kind: 'keyed', scope: 'root' },
     'tool.call.toolview': { kind: 'keyed', scope: 'session' },
     'settings.section': { kind: 'list', scope: 'root' },
@@ -25,20 +26,24 @@ test('product UI decorates real native registry entries without redeclaring chil
   core.register({ name: 'sidebar', locale: 'sidebar', inject, children: sidebarChildren }, Original)
   core.register({ name: 'conversation', locale: 'conversation', inject, children: conversationChildren }, Original)
   core.register({ name: 'conversation.hero.agentPreset', locale: 'settings.agentPreset', inject }, Original)
+  core.register({ name: 'conversation.view', id: 'chat', locale: 'chat', inject }, Original)
+  const chat = core.entries('conversation.view')[0]
   const sidebar = core.entries('sidebar')[0], conversation = core.entries('conversation')[0]
   assert.equal(sidebar.options.locale, undefined)
   const disposers = []
-  apply({ slots: {
+  apply({ inject:(_services,callback)=>callback({effect:()=>{}}),slots: {
     entries: name => core.entries(name),
     subscribe: (name, listener) => core.subscribe(name, listener),
     register: (options, component) => core.register(options, component),
-    inject: (_name, callback) => { const dispose = callback(); disposers.push(dispose); return dispose },
+    inject: (name, callback) => { if(name==='conversation.chat.turnTail')return ()=>{};const dispose = callback(); disposers.push(dispose); return dispose },
   } })
   assert.equal(core.entries('sidebar')[0], sidebar)
   assert.equal(core.entries('conversation')[0], conversation)
   assert.equal(sidebar.children, sidebarChildren)
   assert.equal(conversation.children, conversationChildren)
   assert.equal(conversation.inject, inject)
+  assert.equal(chat.inject, inject)
+  assert.equal(chat.component({ t: key => `original:${key}` }).props.t('chat.deepDiving'), 'FutureStaff Agent thinking.....')
   assert.equal(conversation.locale, 'conversation')
   assert.notEqual(sidebar.component, Original)
   const main = conversation.component({ t: key => `original:${key}`, renderSlot: () => null })
@@ -54,5 +59,6 @@ test('product UI decorates real native registry entries without redeclaring chil
   for (const dispose of disposers.reverse()) dispose()
   assert.equal(sidebar.component, Original)
   assert.equal(conversation.component, Original)
+  assert.equal(chat.component, Original)
   assert.doesNotThrow(() => core.register({ name: 'sidebar.workspaces' }, () => null))
 })

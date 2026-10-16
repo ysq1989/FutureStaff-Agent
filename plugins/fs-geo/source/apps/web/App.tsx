@@ -1,3 +1,4 @@
+import SystemLogo from './brand/SystemLogo';
 import { useCallback, useEffect, useState, useRef } from "react";
 import { startProfileSync } from "./profileSync.mjs";
 import {
@@ -28,16 +29,9 @@ import { AccountControl } from "./AccountControl";
 import { BrandSettings } from "./BrandSettings";
 import type { TenantBrand } from "../../packages/core/content-types";
 function Brand() {
-  return (
-    <div className="brand">
-      <img src="/_futurestaff/geo/brand/futurestaff-icon.svg" alt="FutureStaff" />
-      <span>
-        FutureStaff<span className="brand-dot">.</span>
-        GEO
-      </span>
-    </div>
-  );
+  return <div className="brand"><SystemLogo system="geo" height={40} /></div>;
 }
+
 type Agent = {
   productId: string;
   channel: string;

@@ -10,6 +10,10 @@
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./publisher": {
+      "types": "./lib/publisher-types/contracts/publisher.d.ts",
+      "default": "./lib/publisher.js"
+    },
     "./client": {
       "types": "./lib/client/index.d.ts",
       "default": "./lib/client.js"

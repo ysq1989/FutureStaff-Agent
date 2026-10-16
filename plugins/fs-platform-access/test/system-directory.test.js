@@ -36,6 +36,16 @@ test('authorized Shop AI and GEO entries are visible while absent grants are omi
   assert.deepEqual(systemDirectory({...snapshot,applications:apps},[]).map(item=>item.id),['shop','ai','geo'])
   assert.deepEqual(systemDirectory({...snapshot,applications:[]},[]),[])
 })
+
+test('Web is listed only when authorized and uses its server-provided home', () => {
+  const web={...app,appId:'web',baseUrl:'https://web.fsstory.net',deepLinks:{home:'/'},capabilities:['web.manage']}
+  const items=systemDirectory({...snapshot,applications:[web]},[])
+  assert.equal(items.length,1)
+  assert.equal(items[0].id,'web')
+  assert.equal(items[0].title,'Web 系统')
+  assert.equal(items[0].url,'https://web.fsstory.net/')
+  assert.deepEqual(systemDirectory({...snapshot,applications:[{...web,tenantId:'b'}]},[]),[])
+})
 test('only active authenticated subject applications can supply safe first-party navigation', () => {
   assert.equal(applicationHome(snapshot, app), 'https://erp-dev.fsstory.net/erp')
   for (const patch of [{ tenantId: 'b' }, { capabilities: [] }, { baseUrl: 'https://fsstory.net.attacker.invalid' }, { baseUrl: 'javascript:alert(1)' }, { baseUrl: 'https://user:pass@erp.fsstory.net' }, { deepLinks: { home: '//attacker.invalid' } }, { deepLinks: { home: '/\\attacker.invalid' } }]) {

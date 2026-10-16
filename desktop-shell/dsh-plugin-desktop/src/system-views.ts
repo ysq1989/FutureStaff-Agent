@@ -49,6 +49,14 @@ function navigationAllowed(raw: string, target: string): boolean {
   const url = new URL(raw)
   return url.origin === new URL(target).origin || ['https://platform.fsstory.net','https://platform-dev.fsstory.net','https://dev.fsstory.net','https://fsstory.net'].includes(url.origin)
 }
+function catalogAlbumImageAllowed(details: Electron.OnBeforeRequestListenerDetails, target: string): boolean {
+  const origin = new URL(target).origin
+  if (!['https://product.fsstory.net','https://product-dev.fsstory.net','https://shop-test.fsstory.net'].includes(origin)
+    || details.resourceType !== 'image' || details.method !== 'GET') return false
+  try {
+    return new URL(details.url).hostname === 'xcimg.szwego.com' && new URL(details.referrer).origin === origin
+  } catch { return false }
+}
 
 /** Native content is separate from the authenticated DSH renderer session. */
 export class DesktopSystemViews {
@@ -65,6 +73,25 @@ export class DesktopSystemViews {
     return !this.disposed && !this.window.isDestroyed() && event.sender.id === this.window.webContents.id
       && event.senderFrame === this.window.webContents.mainFrame
       && new URL(event.senderFrame.url).origin === this.shellOrigin
+  }
+  /** No renderer IPC entry: a fixed Shop broker consumes this main-process capability. */
+  async requestSystem(appId:string,path:string,init:RequestInit):Promise<Response> {
+    if(appId!=='shop'||!['/adminapi/platform_login','/adminapi/dsh/mcp'].includes(path)||init.method!=='POST')throw Error('SYSTEM_REQUEST_DENIED')
+    const target=await this.resolve(appId)
+    if(this.disposed||target.signal.aborted||!target.owner||!publicHttps(target.url))throw Error('SYSTEM_VIEW_REVOKED')
+    const partition=this.partition(appId,target.owner)
+    await this.clearing.get(partition)
+    let guest=this.guests.get(appId)
+    if(guest&&(guest.target.owner!==target.owner||guest.target.signal!==target.signal||guest.target.url!==target.url)){
+      this.remove(appId,true);await this.clearing.get(partition);guest=undefined
+    }
+    if(this.disposed||target.signal.aborted)throw Error('SYSTEM_VIEW_REVOKED')
+    guest??=this.create(appId,target)
+    await this.prepare(guest)
+    if(this.disposed||target.signal.aborted||this.guests.get(appId)!==guest)throw Error('SYSTEM_VIEW_REVOKED')
+    const response=await fetchSystemSession(guest.session,new URL(path,new URL(target.url).origin).href,{...init,redirect:'error',credentials:'include',signal:init.signal?AbortSignal.any([target.signal,init.signal]):target.signal})
+    target.signal.throwIfAborted()
+    return response
   }
   private detach(guest: Guest): void {
     if (guest.attached && !this.window.isDestroyed()) this.window.contentView.removeChildView(guest.view)
@@ -102,11 +129,11 @@ export class DesktopSystemViews {
           if (!addresses.length) { callback({ cancel: true }); return }
           if (addresses.every(publicAddress)) { callback({ cancel: false }); return }
           // A configured HTTP/SOCKS5 proxy resolves the authorized public hostname
-          // remotely. Its TUN DNS alias is not a LAN destination; never extend this
-          // exception to other private ranges, arbitrary hosts or DIRECT fallback.
+          // remotely. Include the existing Hub/Shop album CDN, only for image GETs
+          // from that system's origin; never allow private IPs or DIRECT fallback.
           const authorized = this.proxyTargets.get(isolated)
           const alias = addresses.every(address => publicAddress(address) || proxyDnsAlias(address))
-          const proxied = alias && authorized && navigationAllowed(details.url, authorized)
+          const proxied = alias && authorized && (navigationAllowed(details.url, authorized) || catalogAlbumImageAllowed(details, authorized))
             && usesRemoteDnsProxy(await isolated.resolveProxy(details.url))
           callback({ cancel: !proxied })
         }).catch(() => callback({ cancel: true }))

@@ -34,9 +34,10 @@ test('real browser selects persistent agents, isolates sessions, preserves files
     window.fixture={get:()=>({sessions,workspaces}),logout:()=>{identity={phase:'signed_out'};listeners.forEach(fn=>fn())}};
     const useSessions=select=>select(useSyncExternalStore(fn=>{nativeListeners.add(fn);return()=>nativeListeners.delete(fn)},()=>sessions));
     const useWorkspaces=select=>select(useSyncExternalStore(fn=>{nativeListeners.add(fn);return()=>nativeListeners.delete(fn)},()=>workspaces));
+    const archiveSession=async id=>{if(window.fixture.archiveFailure)throw Error('fixture');workspaces={...workspaces,archivedSessionIds:[...workspaces.archivedSessionIds,id]};update()};
     for(const[key,value]of Object.entries(appearanceTokens))document.documentElement.style.setProperty(key,value.light);
     const Managed=createAgentConversation(controller,navigation,createWorkspace,()=> <section id="active-chat">会话内容</section>);
-    function App(){const[open,setOpen]=useState(false);return <div style={{display:'flex',height:'100vh'}}><aside style={{width:220,flexShrink:0,padding:12,display:'flex',flexDirection:'column'}}><button id="new-session" onClick={()=>{navigation.begin();sessions={...sessions,current:undefined};update()}}>新会话</button><Browser useSessions={useSessions} useWorkspaces={useWorkspaces} createWorkspace={createWorkspace} startSession={startSession} open={id=>{sessions={...sessions,current:id};update()}} wide={true}/></aside><main style={{flex:1,minWidth:0}}><button id="open-picker" onClick={()=>setOpen(true)}>选择</button><div style={{height:'calc(100% - 32px)',minHeight:0}}><Managed useSessions={useSessions} selectWorkspace={async id=>startSession(id)}/></div><Picker open={open} onClose={()=>setOpen(false)} onPick={startSession} createWorkspace={createWorkspace}/></main></div>}
+    function App(){const[open,setOpen]=useState(false);return <div style={{display:'flex',height:'100vh'}}><aside style={{width:220,flexShrink:0,padding:12,display:'flex',flexDirection:'column'}}><button id="new-session" onClick={()=>{navigation.begin();sessions={...sessions,current:undefined};update()}}>新会话</button><Browser useSessions={useSessions} useWorkspaces={useWorkspaces} createWorkspace={createWorkspace} startSession={startSession} open={id=>{sessions={...sessions,current:id};update()}} archiveSession={archiveSession} wide={true}/></aside><main style={{flex:1,minWidth:0}}><button id="open-picker" onClick={()=>setOpen(true)}>选择</button><div style={{height:'calc(100% - 32px)',minHeight:0}}><Managed useSessions={useSessions} selectWorkspace={async id=>startSession(id)}/></div><Picker open={open} onClose={()=>setOpen(false)} onPick={startSession} createWorkspace={createWorkspace}/></main></div>}
     createRoot(document.getElementById('root')).render(<App/>);
   `},bundle:true,write:false,format:'iife',jsx:'automatic'})
   let slow=false
@@ -65,6 +66,8 @@ test('real browser selects persistent agents, isolates sessions, preserves files
     await cdp.call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`})
     const waitFor=async(fn)=>{for(let i=0;i<80;i++){if(await cdp.evaluate(fn,null))return;await sleep(50)}assert.fail('browser state did not settle')}
     await waitFor(()=>document.querySelectorAll('.fs-agent-choice').length===2)
+    const searchStyle=await cdp.evaluate(()=>{const input=document.querySelector('.fs-agent-search');input.focus();const parent=getComputedStyle(input.parentElement),field=getComputedStyle(input);return {parentBorder:parent.borderTopWidth,inputBorder:field.borderTopWidth,outlineStyle:field.outlineStyle,height:input.parentElement.getBoundingClientRect().height}},null)
+    assert.equal(searchStyle.parentBorder,'1px');assert.equal(searchStyle.inputBorder,'0px');assert.equal(searchStyle.outlineStyle,'none');assert.equal(searchStyle.height,36)
     assert.equal(await cdp.evaluate(()=>document.querySelector('aside .fs-agent-choice')===null,null),true)
     assert.equal(await cdp.evaluate(()=>document.querySelector('aside').innerText.includes('本机数据位置'),null),false)
     assert.equal(await cdp.evaluate(()=>[...document.querySelectorAll('.fs-agent-choice')].every(button=>{
@@ -90,6 +93,27 @@ test('real browser selects persistent agents, isolates sessions, preserves files
     await cdp.evaluate(()=>document.querySelectorAll('.fs-agent-choice')[0].click()||true,null)
     await waitFor(()=>window.fixture.get().sessions.ids.length===3)
     assert.equal(await cdp.evaluate(()=>document.querySelectorAll('.fs-agent-session').length,null),3)
+    // Validate the real list layout, rather than matching its CSS source text.
+    for(const theme of ['light','dark']){
+      await cdp.evaluate(theme=>{
+        document.documentElement.style.setProperty('--bg-primary',theme==='dark'?'#16181c':'#ffffff');
+        document.documentElement.style.setProperty('--bg-hover',theme==='dark'?'#262a30':'#eef0f4');
+        document.documentElement.style.setProperty('--bg-active',theme==='dark'?'#223456':'#e8efff');
+        document.documentElement.style.setProperty('--text-primary',theme==='dark'?'#e9edf4':'#222936');
+        document.documentElement.style.setProperty('--text-secondary',theme==='dark'?'#a0aabb':'#667085');
+        document.body.style.background='var(--bg-primary)';return true
+      },theme)
+      const layout=await cdp.evaluate(()=>{
+        const row=document.querySelector('.fs-agent-session-row'),button=row.querySelector('.fs-agent-session'),archive=row.querySelector('.fs-agent-archive');
+        button.querySelector('span').textContent='这是一个需要保持单行并且不挤压归档操作的超长中文会话标题';
+        const a=row.getBoundingClientRect(),b=button.getBoundingClientRect(),c=archive.getBoundingClientRect();
+        archive.focus();return {border:getComputedStyle(button).borderTopWidth,height:a.height,overflow:row.scrollWidth>row.clientWidth,
+          reserved:b.right-parseFloat(getComputedStyle(button).paddingRight)<=c.left,icon:!!archive.querySelector('svg'),focused:document.activeElement===archive}
+      },null)
+      assert.equal(layout.border,'0px');assert.ok(layout.height<=58);assert.equal(layout.overflow,false);assert.equal(layout.reserved,true);assert.equal(layout.icon,true);assert.equal(layout.focused,true)
+      const output=path.join(root,'output','sidebar-design-20261015');await mkdir(output,{recursive:true})
+      await writeFile(path.join(output,`sessions-${theme}.png`),Buffer.from((await cdp.call('Page.captureScreenshot',{format:'png'})).data,'base64'))
+    }
     assert.equal(await readFile(path.join(cwd,'local.txt'),'utf8'),'preserved work')
     assert.equal((await new AgentWorkspaceStore(store.root,identity).binding(first)).agentId,cards[0].agentId)
     assert.equal(await cdp.evaluate(()=>document.querySelector('.fs-agent-legacy')===null,null),true)
@@ -97,6 +121,15 @@ test('real browser selects persistent agents, isolates sessions, preserves files
     await waitFor(()=>!!document.querySelector('.fs-agent-home'))
     await cdp.evaluate(()=>document.querySelector('.fs-agent-session').click()||true,null)
     await waitFor(()=>!!document.querySelector('#active-chat')&&!document.querySelector('.fs-agent-home'))
+    await cdp.evaluate(()=>document.querySelector('.fs-agent-archive').click()||true,null)
+    await waitFor(()=>document.querySelectorAll('.fs-agent-session').length===2)
+    assert.equal(await cdp.evaluate(()=>window.fixture.get().sessions.ids.length,null),3)
+    assert.equal(await readFile(path.join(cwd,'local.txt'),'utf8'),'preserved work')
+    await cdp.evaluate(()=>{window.fixture.archiveFailure=true;document.querySelector('.fs-agent-archive').click();return true},null)
+    await waitFor(()=>!!document.querySelector('.fs-agent-browser [role=alert]'))
+    assert.equal(await cdp.evaluate(()=>document.querySelectorAll('.fs-agent-session').length,null),2)
+    await cdp.evaluate(()=>{window.fixture.archiveFailure=false;document.querySelector('.fs-agent-archive').click();return true},null)
+    await waitFor(()=>document.querySelectorAll('.fs-agent-session').length===1)
     await cdp.evaluate(()=>document.getElementById('open-picker').click()||true,null)
     assert.equal(await cdp.evaluate(()=>document.activeElement.textContent,null),'关闭')
     await cdp.evaluate(()=>{const dialog=document.querySelector('[role=dialog]'),last=[...dialog.querySelectorAll('button')].at(-1);last.focus();last.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));return true},null)
@@ -115,5 +148,5 @@ test('real browser selects persistent agents, isolates sessions, preserves files
     await sleep(650)
     assert.equal(await cdp.evaluate(()=>window.fixture.get().sessions.ids.length,null),3)
     assert.equal(await cdp.evaluate(()=>document.querySelectorAll('.fs-agent-choice').length,null),0)
-  }finally{cdp?.close();child.kill();await new Promise(resolve=>server.close(resolve))}
+  }finally{cdp?.close();child.kill();server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}
 })

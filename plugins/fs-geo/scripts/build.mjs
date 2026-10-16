@@ -1,11 +1,11 @@
 import {build} from 'esbuild';
-import {cp,mkdir,writeFile} from 'node:fs/promises';
+import {cp,mkdir,writeFile,rm,rename} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
 await mkdir(path.join(root,'lib/ui'),{recursive:true});
 const external=['@deepseek-ai/cordis','@electric-sql/pglite'];
-await build({entryPoints:{index:path.join(root,'src/index.ts'),service:path.join(root,'src/service.ts'),authorization:path.join(root,'src/authorization.ts')},outdir:path.join(root,'lib'),bundle:true,platform:'node',format:'esm',target:'node22',external,banner:{js:'import { createRequire as __geoCreateRequire } from "node:module"; const require = __geoCreateRequire(import.meta.url);'}});
+await build({entryPoints:{index:path.join(root,'src/index.ts'),service:path.join(root,'src/service.ts'),authorization:path.join(root,'src/authorization.ts'),'cloud-entry':path.join(root,'src/cloud-entry.ts'),publisher:path.join(root,'src/publisher.ts'),'agent-bridge':path.join(root,'src/agent-bridge.ts')},outdir:path.join(root,'lib'),bundle:true,platform:'node',format:'esm',target:'node22',external,banner:{js:'import { createRequire as __geoCreateRequire } from "node:module"; const require = __geoCreateRequire(import.meta.url);'}});
 await build({entryPoints:[path.join(root,'source/apps/web/main.tsx')],outfile:path.join(root,'lib/ui/assets/app.js'),bundle:true,platform:'browser',format:'esm',target:'es2022',jsx:'automatic',minify:true});
 await cp(path.join(root,'source/public/audio'),path.join(root,'lib/ui/audio'),{recursive:true});
 await cp(path.join(root,'source/public/brand'),path.join(root,'lib/ui/brand'),{recursive:true});
@@ -15,4 +15,9 @@ await mkdir(path.join(root,'lib/client'),{recursive:true});
 await writeFile(path.join(root,'lib/client/index.d.ts'),'import type {Context} from "@deepseek-ai/cordis"; export declare const inject: string[]; export declare function apply(ctx:Context): void;\n');
 await writeFile(path.join(root,'lib/index.d.ts'),'import type {Context} from "@deepseek-ai/cordis"; export declare const inject: string[]; export declare function apply(ctx:Context): void;\n');
 const {spawnSync}=await import('node:child_process');
+// Keep emitted contracts out of source-named directories rejected by the release gate.
+const publisherTypes=path.join(root,'lib/publisher-types');
+await rm(publisherTypes,{recursive:true,force:true});
+const declarations=spawnSync(process.execPath,[path.resolve(root,'../../node_modules/typescript/bin/tsc'),'-p',path.join(root,'tsconfig.publisher.json')],{stdio:'inherit'});if(declarations.status!==0)throw Error('GEO publisher declarations failed');
+await rename(path.join(publisherTypes,'src'),path.join(publisherTypes,'contracts'));
 const result=spawnSync(process.execPath,[path.resolve(root,'../../scripts/build-dsh-client.mjs'),root,'@futurestaff/fs-geo'],{stdio:'inherit'});if(result.status!==0)throw Error('GEO client build failed');

@@ -5,11 +5,15 @@ import { RememberedLogin } from './remembered-login.js'
 import { DesktopLoginWorkspace, readWorkspaceIdentity, workspaceName, workspaceDirectory } from './workspace.js'
 import { mountAgents } from './agent-host.js'
 import { mountErp } from './erp-host.js'
+import { mountShop } from './shop-host.js'
+import { mountAgentImages } from './agent-images-host.js'
+import { mountWebsite } from './website-host.js'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { PlatformDevApi } from './api.js'
 import { FutureStaffChatAdapter } from './chat.js'
+import { createChatImageReader } from './chat-images.js'
 import { createPlatformInferenceService, type PlatformInferenceService } from './inference.js'
 import { apply as applyManagedModelDefault } from './model-default.js'
 import { PLATFORM_CONTRACT_VERSION, PLATFORM_MOCK_BASE_URL } from './contracts.js'
@@ -128,11 +132,11 @@ function mountDevLogin(ctx: Context, environment: PlatformEnvironment): void {
     pkce: new PlatformPkceTransaction({ environment }), api, vault,
   })
   const initialized = access.restore()
-  if (identity) mountErp(ctx, origin, async () => { await initialized; return access.authorizeTemplates() })
   const agents = identity ? mountAgents(ctx, origin, identity, workspaceDirectory(identity), async () => {
     await initialized
     return access.authorizeTemplates()
   }) : undefined
+  if (identity && agents) mountErp(ctx, origin, async () => { await initialized; return access.authorizeTemplates() },sessionId=>agents.authorizeBusiness(sessionId,'erp'))
   if (identity) mountMarket(ctx, origin, identity, roleRoot(identity), async () => {
     await initialized
     return access.authorizeTemplates()
@@ -158,7 +162,13 @@ function mountDevLogin(ctx: Context, environment: PlatformEnvironment): void {
   if (typeof ctx.inject === 'function') ctx.inject(['llm'], llmCtx => {
     const adapter = new FutureStaffChatAdapter(async modelId => { await initialized; return access.authorizeChat(modelId) }, secrets, globalThis.fetch, origin,
       async () => { await initialized; return access.getSnapshot().models },
-      agents ? agents.resolveBinding : undefined)
+      agents ? agents.resolvePolicyBinding : undefined,
+      agents ? createChatImageReader(() => ctx.get('attachments'),async sessionId=>{
+        await access.authorizeChat()
+        const binding=await agents.resolveBinding(sessionId)
+        if(!binding)throw Error('AGENT_BINDING_REQUIRED')
+        return agents.store.workspacePath(binding.agentId)
+      }) : undefined)
     llmCtx.effect(() => {
       const unregister = llmCtx.llm.registerAdapter(['futurestaff'], adapter)
       return () => { adapter.dispose(); unregister() }
@@ -241,6 +251,11 @@ function mountDevLogin(ctx: Context, environment: PlatformEnvironment): void {
     cancel: close,
   })
   ctx.provide('platformDevLogin', service)
+  if (identity && agents) {
+    mountWebsite(ctx,origin,async sessionId=>{await initialized;await agents.authorizeBusiness(sessionId,'web');const credentials=await access.authorizeTemplates(),binding=await agents.resolveBinding(sessionId);if(!binding)throw Error('AGENT_SESSION_REQUIRED');return {...credentials,agentId:binding.agentId,version:binding.version,workspacePath:await agents.store.workspacePath(binding.agentId)}})
+    const shop=mountShop(ctx, async () => { const target=await service.resolveSystemApplication('shop');return {owner:target.owner,signal:target.signal,origin:new URL(target.url).origin} },sessionId=>agents.authorizeBusiness(sessionId,'shop'))
+    mountAgentImages(ctx,origin,async sessionId=>{await initialized;const credentials=await access.authorizeTemplates(),binding=await agents.resolveBinding(sessionId);if(!binding)throw Error('AGENT_SESSION_REQUIRED');return {...credentials,agentId:binding.agentId,version:binding.version,workspacePath:await agents.store.workspacePath(binding.agentId)}},shop,sessionId=>agents.authorizeBusiness(sessionId,'shop'),sessionId=>agents.authorizeBusiness(sessionId,'web'))
+  }
   ctx.effect(() => () => { access.dispose(); close() }, 'futurestaff-platform-access: login and callback lifecycle')
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact', path: '/_futurestaff/platform-dev/login',

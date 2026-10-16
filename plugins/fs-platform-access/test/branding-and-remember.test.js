@@ -8,6 +8,7 @@ test('hero branding changes only brand copy and preserves composer translations 
   assert.equal(element.type, original)
   assert.equal(element.props.t('hero.headline'), 'FutureStaff Agent')
   assert.equal(element.props.t('hero.preview'), '')
+  assert.equal(element.props.t('chat.deepDiving'), 'FutureStaff Agent thinking.....')
   assert.equal(element.props.t('placeholder.hero'), 'original:placeholder.hero')
   assert.equal(element.props.onSubmit, handler)
   assert.equal(element.props.renderSlot, renderSlot)

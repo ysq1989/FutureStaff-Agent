@@ -9,6 +9,7 @@ const catalog = [
   { id: 'erp', title: '进销存系统', description: '进销存与业务管理' },
   { id: 'hub', title: '货源集市', description: '货源接入与商品整理' },
   { id: 'shop', title: '商城系统', description: '商城管理' },
+  { id: 'web', title: 'Web 系统', description: '网站建设与内容管理' },
   { id: 'ai', title: '智能模型服务', description: '企业智能模型能力' },
   { id: 'geo', title: '品牌运营系统', description: '品牌内容与智能搜索可见性' },
   { id: 'immigration', title: '越南签证', description: '签证业务工作台' },

@@ -1,14 +1,24 @@
-# GEO local desktop system
+# GEO cloud workspace and local publisher
 
-GEO is a peer of Douyin acquisition in FutureStaff Agent's System navigation.
-It opens one owned local workspace tab. It is not a remote GEO website shortcut.
+User clarified on 2026-10-10: GEO business data stays in the cloud; publication
+accounts are device-local. The System tab now opens the current subject's approved
+cloud GEO entry in the system browser. The cloud host validates its own login.
+An embedded cloud-control bridge and live Toutiao publishing are not connected yet.
+
+The default Host no longer registers a writable local business workspace. Existing
+local files/data are preserved without upload or merge. The code below remains
+as a legacy compatibility implementation, not the active business authority.
+
+`@futurestaff/fs-geo/publisher` exports the pinned publication Runner/journal and
+local account Profile component. It does not include a verified Toutiao article
+driver. See `docs/specs/geo-cloud-local-publishing.md` for current scope and checks.
 
 The business UI and domain/storage code were migrated from the independent GEO
 0.2.1 source at `aa8f810a80372e9bc14415b584504a5acf68b323`.
 `source-manifest.json` records original file hashes and desktop adaptations.
 The original GEO repository and its production environment are unchanged.
 
-## Runtime
+## Preserved legacy local runtime
 
 - DSH Host owns login, current environment/tenant/member and application grants.
 - Every local business request obtains the server-validated GEO permission

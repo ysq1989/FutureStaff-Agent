@@ -52,3 +52,12 @@ Implemented and visually verified on 2026-09-07.
 - Keep the visual package in the FutureStaff product layer; the generic desktop shell remains unchanged.
 
 - None recorded
+
+## Desktop shell refinement — 2026-10-11
+
+The user rejected the current screenshot's visual quality. The shell now uses neutral navigation surfaces,
+the existing approved FutureStaff mark, a distinct current-subject row, semantic line icons and a single 46px
+system toolbar. Blue is limited to brand and selection. Light/dark tokens are owned by
+`plugins/fs-platform-access/src/client/appearance.ts`; earlier green Product Hub approval tokens remain module context.
+The former saturated blue sidebar decision is superseded for the desktop frame.
+21st catalog search found browser-style sidebar/tab patterns; implementation reuses existing project controls.

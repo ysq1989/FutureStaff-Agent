@@ -1,5 +1,7 @@
 import { futureStaffLogoUrl, futureStaffAgentWordmarkPaths } from '../brand.js'
 import { applyErpClient } from './erp.js'
+import {applyShopOperationClient} from './shop-operations.js'
+import {mountFashionPreviews} from './fashion-preview.js'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -13,6 +15,7 @@ import type { PlatformAccessSnapshot } from '../controller.js'
 import { decodePlatformDevAccessSnapshot } from '../dev-access.js'
 import { mountPlatformAccessPanel } from '../view.js'
 import { installAppearance } from './appearance.js'
+import { LoginBackground, loginBackgroundCss } from './login-background.js'
 import { modePresentation } from './modes.js'
 import { createAccountSidebar } from './sidebar.js'
 import { SystemPages, SystemMain } from './system-pages.js'
@@ -42,7 +45,7 @@ export const platformAccessPanelCss = `
 .futurestaff-access .fs-login-form{display:grid;gap:8px;max-width:420px;margin-top:4px}.futurestaff-access .fs-login-form label{margin-top:4px;font-size:.82rem;font-weight:680}.futurestaff-access .fs-login-form input{width:100%;min-height:42px;padding:9px 12px;border:1px solid var(--fs-border);border-radius:10px;background:color-mix(in srgb,currentColor 2.5%,transparent);color:inherit;font:inherit}.futurestaff-access .fs-login-form input:focus-visible{outline:3px solid color-mix(in srgb,var(--fs-accent) 35%,transparent);outline-offset:2px}.futurestaff-access .fs-login-form button{margin-top:8px}
 .futurestaff-access .fs-model-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}.futurestaff-access .fs-model-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;border:1px solid var(--fs-border);border-radius:12px;background:color-mix(in srgb,currentColor 1.5%,transparent)}.futurestaff-access .fs-model-list li[data-active=true]{border-color:color-mix(in srgb,var(--fs-accent) 45%,transparent);background:var(--fs-accent-soft)}.futurestaff-access .fs-model-list strong,.futurestaff-access .fs-model-list span{display:block}.futurestaff-access .fs-model-list span{margin-top:2px;color:var(--fs-muted);font-size:.76rem}.futurestaff-access .fs-model-list em{flex:0 0 auto;padding:4px 8px;border-radius:999px;background:var(--fs-accent);color:#fff;font-size:.7rem;font-style:normal;font-weight:700}
 .futurestaff-login-gate{position:fixed;inset:0;z-index:1400;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 12%,rgba(34,211,238,.18),transparent 38%),rgba(3,10,24,.82);backdrop-filter:blur(12px);pointer-events:auto}.futurestaff-login-gate .futurestaff-access{width:min(380px,100%);max-width:380px}.futurestaff-login-gate .fs-panel{background:color-mix(in srgb,#fff 96%,#e8f5ff);box-shadow:0 28px 90px rgba(0,0,0,.34)}
-.futurestaff-access .fs-state{grid-template-columns:auto minmax(0,1fr);align-items:start}.futurestaff-access .fs-state-copy{display:grid;gap:11px;min-width:0}.futurestaff-access .fs-state .fs-state-mark{width:50px;height:50px}.futurestaff-access .fs-state .fs-actions{margin-top:4px}.futurestaff-access .fs-skeletons{display:grid;gap:8px;margin-top:4px}.futurestaff-access .fs-skeletons span{height:12px;border-radius:999px;background:linear-gradient(90deg,var(--fs-border),color-mix(in srgb,currentColor 7%,transparent),var(--fs-border));background-size:200% 100%;animation:fs-shimmer 1.25s ease-in-out infinite}.futurestaff-access .fs-skeletons span:nth-child(2){width:78%}.futurestaff-access .fs-skeletons span:nth-child(3){width:52%}
+.futurestaff-access .fs-state{grid-template-columns:minmax(0,1fr);align-items:start}.futurestaff-access .fs-state-copy{display:grid;gap:11px;min-width:0}.futurestaff-access .fs-state .fs-state-mark{width:50px;height:50px}.futurestaff-access .fs-state .fs-actions{margin-top:4px}.futurestaff-access .fs-skeletons{display:grid;gap:8px;margin-top:4px}.futurestaff-access .fs-skeletons span{height:12px;border-radius:999px;background:linear-gradient(90deg,var(--fs-border),color-mix(in srgb,currentColor 7%,transparent),var(--fs-border));background-size:200% 100%;animation:fs-shimmer 1.25s ease-in-out infinite}.futurestaff-access .fs-skeletons span:nth-child(2){width:78%}.futurestaff-access .fs-skeletons span:nth-child(3){width:52%}
 @keyframes fs-shimmer{to{background-position:-200% 0}}
 @media (max-width: 640px){.futurestaff-access .fs-panel{gap:18px;padding:18px;border-radius:16px}.futurestaff-access .fs-header{display:grid}.futurestaff-access .fs-header-actions{width:100%}.futurestaff-access .fs-header-actions button{flex:1}.futurestaff-access .fs-tenant{grid-template-columns:1fr;gap:12px}.futurestaff-access .fs-app-grid{grid-template-columns:1fr}.futurestaff-access .fs-state{grid-template-columns:1fr}.futurestaff-access .fs-state-mark{display:none}.futurestaff-access .fs-actions button{flex:1}.futurestaff-access .fs-summary{align-items:flex-start;flex-direction:column}.futurestaff-access .fs-count{align-self:flex-end}}
 @media (prefers-reduced-motion: reduce){.futurestaff-access *{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
@@ -403,8 +406,8 @@ function FutureStaffPlatformLoginGate({ controller }: PlatformAccessViewProps) {
   return createElement('section', {
     className: 'futurestaff-login-gate', role: 'dialog', 'aria-modal': true,
     'aria-label': 'FutureStaff Agent',
-  }, createElement('div', { className: 'futurestaff-access' },
-    createElement('style', null, platformAccessPanelCss),
+  }, createElement(LoginBackground), createElement('div', { className: 'futurestaff-access' },
+    createElement('style', null, platformAccessPanelCss + loginBackgroundCss),
     createElement('div', { ref: root }),
   ))
 }
@@ -426,7 +429,7 @@ type BrandedConversationProps = Record<string, unknown> & { t: (key: string, ...
 export function brandConversation(original: ComponentType<BrandedConversationProps>) {
   return function FutureStaffConversation(props: BrandedConversationProps) {
     return createElement(original, { ...props, t: (key: string, ...args: unknown[]) =>
-      key === 'hero.headline' ? 'FutureStaff Agent' : key === 'hero.preview' ? '' : key === 'hero.chooseWorkspace' ? '选择智能体' : props.t(key, ...args) })
+      key === 'hero.headline' ? 'FutureStaff Agent' : key === 'hero.preview' ? '' : key === 'hero.chooseWorkspace' ? '选择智能体' : key === 'chat.deepDiving' ? 'FutureStaff Agent thinking.....' : props.t(key, ...args) })
   }
 }
 
@@ -514,6 +517,9 @@ export function apply(ctx: ClientContext): void {
       const Conversation=createAgentConversation(controller,agentNavigation,createWorkspace,Original as unknown as ComponentType<Record<string,unknown>>)
       return function FutureStaffMain(props:BrandedConversationProps){return createElement(SystemMain,{pages,chat:createElement(Conversation,props as unknown as AgentConversationProps)})}
     }))
+  ctx.slots.inject('conversation.view', () => watchSlotComponents(ctx.slots, 'conversation.view',
+    entry => entry.options.id === 'chat' && (entry.options.priority ?? 0) === 0,
+    component => brandConversation(component as ComponentType<BrandedConversationProps>)))
   for (const name of ['conversation.hero.agentPreset', 'conversation.session.header.actions', 'settings.section'] as const) {
     ctx.slots.inject(name, () => watchSlotComponents(ctx.slots, name,
       entry => entry.locale === 'settings.agentPreset' && (entry.options.priority ?? 0) === 0,
@@ -536,6 +542,8 @@ export function apply(ctx: ClientContext): void {
     name: 'shell.overlay', id: 'futurestaff-login-gate', order: -100,
   }, () => createElement(FutureStaffPlatformLoginGate, { controller })))
   applyErpClient(ctx)
+  applyShopOperationClient(ctx)
+  mountFashionPreviews(ctx)
 }
 
 declare module '@deepseek-ai/cordis' { interface Context { platformClientSession: PlatformDevClientController;platformSystemPages:SystemPages } }

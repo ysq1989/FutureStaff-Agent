@@ -1,18 +1,22 @@
 # FutureStaff Agent 换电脑开发交接
 
-日期：2026-10-10。
+首次交接：2026-10-10；换机核对更新：2026-10-16。文档入口见 [开发文档导航](README.md)。
 
 ## 仓库与范围
 
 权威客户端仓库为 `https://github.com/ysq1989/FutureStaff-Agent.git`，由原 `futurestaff-dsh` 重命名而来，保留原 Git 历史。原先误建的同名平台快照仓库已删除。
 
+后端/Web 历史快照现单独保存于私有仓库 `https://github.com/ysq1989/FutureStaff-Agent-web.git`。本客户端仓库当前为公开，不能上传本机配置、业务资料或登录凭据。两个本机目录原来指向相同 origin，本次已拆分；平台权威身份服务仍属于独立 Platform，不由快照替代。
+
 本次提交保存当前客户端开发工作树，包括抖音模块、主体隔离与推理适配、系统页面导航、桌面模块窗口、测试、规格和任务记录。提交不是软件发布，也不表示各任务的真实网站验收或待办已经完成。
+
+2026-10-16 的换机提交另保存现有 ERP/SHOP 助手、图片与选品流程、Website SSO、主体/会话侧栏、GEO 云端入口和本地发布开发成果，以及相关脚本、测试、品牌与任务记录。每个功能的完成程度以分项任务为准，不能将开发快照视为全部功能已验收。
 
 ## 新电脑获取
 
 ```powershell
-git clone --recurse-submodules https://github.com/ysq1989/FutureStaff-Agent.git
-cd FutureStaff-Agent
+git clone --recurse-submodules https://github.com/ysq1989/FutureStaff-Agent.git FutureStaff-Agent-client
+cd FutureStaff-Agent-client
 git status --short --branch
 git submodule status
 ```
@@ -20,6 +24,18 @@ git submodule status
 必须新建检出目录。不要在此前误拉取的平台快照目录中直接执行 `git pull`，它们不是同一份 Git 历史。
 
 需要 Node.js 22+（以各工程 `engines` 为准）、npm、Corepack/Yarn 和 pnpm。按 README 安装根工程与桌面工程依赖，再执行 `npm run check`。不要手动复制 `node_modules` 或构建输出。
+
+桌面工程当前要求 Node.js `^22.19.0 || >=24.0.0`，Yarn 固定为 `4.18.0`。在克隆目录中执行：
+
+```powershell
+npm ci
+npm run desktop:install
+# 仅在新机尚无 .env 时复制，随后按需配置，不覆盖现有文件。
+Copy-Item .env.example .env
+npm run check
+```
+
+桌面安装命令同时安装 GEO Web 源码依赖并执行桌面 Yarn immutable 安装。仓库中的 `desktop-shell/vendor/`、锁文件、补丁和固定子模块是可重建依赖的一部分，必须保留；不要因它们属于第三方就删掉。需要进入本机开发 Profile 时再执行 `npm run profile:install`，然后 `npm run dev -- --port 3080 --no-open`。默认端口与数据目录须先确认没有正在使用的实例。
 
 两个上游子模块均固定提交，不能自动更新到最新分支：
 
@@ -36,7 +52,27 @@ git submodule status
 
 如需保留历史会话、文件和业务工作区，先确认实际 DSH 数据目录及账号/主体边界，再单独安全迁移。开发源码迁移不等于运行数据已备份。
 
-## 本次验证
+## 2026-10-16 换机提交前验证
+
+起始客户端 main：`1ef692067e1195c846a4498034a0e585fdce88f0`；推送前重新 fetch，确认与 origin/main 一致。两个固定子模块干净，未升级。完整命令日志只保留旧电脑本地 `work-migration-*.log`，不上传可能含运行上下文的原始日志。
+
+| 检查 | 结果 |
+| --- | --- |
+| `npm run check` | 未通过：工作区类型检查完成；抖音 UI 的 `test/browser-ui.test.js` 中真实浏览器渲染测试 30 秒超时，此后进程未正常退出。仅终止本次检查创建的进程树，未修改功能或关闭门禁 |
+| `npm run build:product` | 通过，包含各产品工作区构建 |
+| `npm run test -w @futurestaff/fs-platform-access` | 299 项通过 |
+| `npm run test -w @futurestaff/fs-geo` | 12 项通过 |
+| `node --test test/*.test.js` | 64 项通过 |
+| `corepack yarn@4.18.0 --cwd desktop-shell workspace dsh-plugin-desktop typecheck` | 通过 |
+| `corepack yarn@4.18.0 --cwd desktop-shell workspace dsh-plugin-desktop build` | 通过 |
+| 从 `desktop-shell/dsh-plugin-desktop` 运行 `node ../../node_modules/vitest/vitest.mjs run tests/system-views.spec.ts tests/package.spec.ts` | 48 项通过、1 项失败；嵌入页面 11 项全部通过。唯一失败是 package 测试期待 `3.0.2`，当前 manifest 为 `3.0.5` |
+| `npm run check:desktop` | 未通过：`Desktop variant reviewed source changed: electron-runtime.ts`，后续完整桌面门禁未执行 |
+| `node scripts/verify-official-candidate.mjs` | 通过，仅确认固定候选，不代表默认发行底座已切换 |
+| 敏感内容与差异检查 | 候选文件未发现真实凭据，命中项为隔离测试/Mock 字符串；真实配置、会话、数据库和原始日志不进入提交。5 个新增证据脚本仅移除多余文件末尾空行 |
+
+这是可继续开发的源码快照，完整检查没有全绿。新电脑应先复现上述失败并按分项任务处理，未完成发布门禁前不要发行安装包。本次不部署、不更新安装版、不执行真实业务操作、不迁移运行数据。
+
+## 2026-10-10 验证（历史记录）
 
 - `npm run check`：未完全通过。工作区类型检查、测试、产品构建通过；桌面布局检查停在 `verify-desktop-variants.mjs`，稳定版与 Beta 的 9 个源码路径存在未声明差异。
 - `corepack yarn@4.18.0 --cwd desktop-shell workspace dsh-plugin-desktop build`：通过。

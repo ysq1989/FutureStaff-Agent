@@ -56,10 +56,15 @@ export const sidebarCss = `
 .fs-sidebar-account{--text-primary:var(--fs-popup-text)}.fs-sidebar-avatar{color:var(--accent-primary)}
 .fs-sidebar-logo{width:28px;height:30px;flex-shrink:0}.fs-sidebar-brand-wordmark{flex:1;min-width:0;font-size:14px;font-weight:650;letter-spacing:-.4px}.fs-sidebar-brand-wordmark span{color:var(--accent-primary)}.fs-sidebar-brand button{display:grid;place-items:center;width:30px;min-height:30px;color:var(--text-secondary)}
 .fs-sidebar-subject{display:flex;align-items:center;gap:9px;padding:8px;border:1px solid var(--border-default);border-radius:8px;background:var(--bg-secondary)}.fs-sidebar-subject .fs-sidebar-avatar{width:28px;height:28px;font-size:12px}.fs-sidebar-subject small{display:block;font-size:10px;font-weight:400;color:var(--text-secondary);margin-bottom:2px}.fs-sidebar-subject .fs-sidebar-name{font-size:12px}
-.fs-sidebar[data-collapsed=true]{align-items:center;gap:12px}.fs-sidebar[data-collapsed=true] .fs-sidebar-brand{height:30px;width:36px}.fs-sidebar[data-collapsed=true] .fs-sidebar-subject{justify-content:center;padding:0;width:36px;height:32px;border:0;background:transparent}
+.fs-sidebar-account .fs-sidebar-subject{margin-bottom:6px}.fs-sidebar-subject[hidden]{display:none}.fs-sidebar[data-collapsed=true] .fs-sidebar-account .fs-sidebar-name{display:block}
+.fs-sidebar[data-collapsed=true]{align-items:center;gap:12px}.fs-sidebar[data-collapsed=true] .fs-sidebar-brand{height:30px;width:36px}
 .fs-sidebar[data-collapsed=true] .fs-sidebar-tabs{background:transparent;padding:0;gap:4px;align-items:center;width:36px}.fs-sidebar[data-collapsed=true] .fs-sidebar-tabs button{display:grid;place-items:center;width:36px;height:36px;min-height:36px;flex:none;border-radius:7px}.fs-sidebar[data-collapsed=true] .fs-sidebar-tabs button[aria-selected=true]{background:var(--fs-sidebar-selected);color:var(--accent-primary);box-shadow:none}
 .fs-sidebar[data-collapsed=true] .fs-sidebar-region{width:36px}.fs-sidebar[data-collapsed=true] .fs-sidebar-menu{gap:6px;border-top:1px solid var(--border-default);padding-top:12px;scrollbar-width:none}.fs-sidebar[data-collapsed=true] .fs-sidebar-system{width:36px;height:36px;min-height:36px;padding:0;border-radius:7px}.fs-sidebar[data-collapsed=true] .fs-system-icon{width:24px;height:24px}
 .fs-sidebar[data-collapsed=true] .fs-sidebar-footer{width:36px}.fs-sidebar[data-collapsed=true] .fs-sidebar-user{display:grid;place-items:center;width:36px;min-height:36px;padding:0!important}.fs-sidebar[data-collapsed=true] .fs-sidebar-user .fs-sidebar-avatar{width:28px;height:28px}
+.fs-sidebar-workspaces{display:flex;flex-direction:column;flex:1;min-height:0}.fs-sidebar-workspaces[hidden]{display:none}
+.fs-sidebar[data-collapsed=true] #fs-sessions-panel{gap:8px;border-top:1px solid var(--border-default);padding-top:12px}
+.fs-sidebar[data-collapsed=true] .fs-sidebar-new,.fs-sidebar-rail-action{display:grid;place-items:center;flex:none;width:36px;height:36px;min-height:36px;margin:0;padding:0;border-radius:7px;background:transparent!important;color:var(--text-secondary)!important;box-shadow:none}
+.fs-sidebar[data-collapsed=true] .fs-sidebar-new:hover,.fs-sidebar-rail-action:hover{background:var(--bg-hover)!important;color:var(--text-primary)!important}
 .dshDesktopSidebarSurface:has(.fs-sidebar-account[data-open=true]){overflow:visible;z-index:4}
 `
 
@@ -73,6 +78,9 @@ function SubjectLogo({ name, url }: { name: string; url: string | undefined }) {
 
 function SystemIcon({id}:{id:string}) {
   const paths:Record<string,string>={erp:'M3 7h18v14H3z M3 7l4-4h10l4 4 M8 11h8',hub:'M4 4h6v6H4z M14 14h6v6h-6z M14 4h6v6h-6z M4 14h6v6H4z',shop:'M5 8h14l1 13H4z M9 8V6a3 3 0 0 1 6 0v2',ai:'M7 7h10v10H7z M10 3v4 M14 3v4 M10 17v4 M14 17v4 M3 10h4 M3 14h4 M17 10h4 M17 14h4',geo:'M4 3v17h17 M8 15l4-5 4 3 5-7',immigration:'M6 3h13v18H6z M10 7h5 M10 11h5 M10 15h3',douyin:'M4 4h16v12H9l-5 4z M8 8h8 M8 12h5'}
+  paths.web='M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0 M3 12h18 M12 3a18 18 0 0 1 0 18 18 18 0 0 1 0-18'
+  paths.new='M12 5v14 M5 12h14'
+  paths.search='M21 21l-5-5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0'
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[id]??paths.hub}/></svg>
 }
 
@@ -88,6 +96,14 @@ export function createAccountSidebar(controller: SidebarAccountController,pages?
     const [accountOpen, setAccountOpen] = useState(false)
     const footer = useRef<HTMLDivElement>(null)
     const userButton = useRef<HTMLButtonElement>(null)
+    const workspaces = useRef<HTMLDivElement>(null)
+    const focusSessionSearch = useRef(false)
+    useEffect(() => {
+      if (!collapsed && focusSessionSearch.current) {
+        focusSessionSearch.current = false
+        workspaces.current?.querySelector<HTMLInputElement>('input[aria-label="搜索会话"]')?.focus()
+      }
+    }, [collapsed])
     const version = typeof window === 'undefined' ? undefined : sidebarVersion(window.location.search)
     useEffect(() => { setAccountOpen(false); setTab('sessions');pages?.bindOwner(['ready','no_apps'].includes(snapshot.phase)&&snapshot.activeTenantId&&snapshot.user?.userId?`${snapshot.activeTenantId}:${snapshot.user.userId}`:'') }, [snapshot.phase,snapshot.activeTenantId, snapshot.user?.userId])
     useEffect(() => {
@@ -119,14 +135,14 @@ export function createAccountSidebar(controller: SidebarAccountController,pages?
         {!collapsed && <><img className="fs-sidebar-logo" src={futureStaffLogoUrl} alt="FutureStaff"/><span className="fs-sidebar-brand-wordmark">FutureStaff<span>.Agent</span></span></>}
         <button type="button" aria-label={collapsed ? '展开侧栏' : '收起侧栏'} onClick={toggleSidebar}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg></button>
       </header>
-      <div className="fs-sidebar-subject" title={identity.tenantName}><SubjectLogo name={identity.tenantName} url={identity.logoUrl}/>{!collapsed&&<span className="fs-sidebar-name"><small>当前主体</small>{identity.tenantName}</span>}</div>
       <div className="fs-sidebar-tabs" role="tablist" aria-label="侧栏内容" aria-orientation={collapsed ? 'vertical' : 'horizontal'} onKeyDown={switchByKey}>
         <button type="button" role="tab" id="fs-sessions-tab" aria-label="会话" title="会话" tabIndex={tab === 'sessions' ? 0 : -1} aria-controls="fs-sessions-panel" aria-selected={tab === 'sessions'} onClick={() => { chooseTab('sessions') }}>{collapsed?<SystemIcon id="douyin"/>:'会话'}</button>
         <button type="button" role="tab" id="fs-menu-tab" aria-label="系统" title="系统" tabIndex={tab === 'menu' ? 0 : -1} aria-controls="fs-menu-panel" aria-selected={tab === 'menu'} onClick={() => { chooseTab('menu') }}>{collapsed?<SystemIcon id="hub"/>:'系统'}</button>
       </div>
       <section key={`sessions:${snapshot.activeTenantId ?? 'signed-out'}`} className="fs-sidebar-region" id="fs-sessions-panel" role="tabpanel" aria-labelledby="fs-sessions-tab" hidden={tab !== 'sessions'}>
-        <button type="button" className="fs-sidebar-new" aria-label="新会话" onClick={() => { pages?.select('sessions');if(onNewSession)onNewSession();else startSession() }}>{collapsed ? '+' : '+ 新会话'}</button>
-        {renderSlot('sidebar.workspaces', { wide: !collapsed, expandSidebar: () => { if (collapsed) toggleSidebar() } })}
+        <button type="button" className="fs-sidebar-new" aria-label="新会话" title="新会话" onClick={() => { pages?.select('sessions');if(onNewSession)onNewSession();else startSession() }}>{collapsed ? <SystemIcon id="new"/> : '+ 新会话'}</button>
+        {collapsed && <button type="button" className="fs-sidebar-rail-action" aria-label="搜索会话" title="搜索会话" onClick={() => { focusSessionSearch.current = true; toggleSidebar() }}><SystemIcon id="search"/></button>}
+        <div className="fs-sidebar-workspaces" ref={workspaces} hidden={collapsed}>{renderSlot('sidebar.workspaces', { wide: !collapsed, expandSidebar: () => { if (collapsed) toggleSidebar() } })}</div>
       </section>
       <section key={`menu:${snapshot.activeTenantId ?? 'signed-out'}`} className="fs-sidebar-region fs-sidebar-menu" id="fs-menu-panel" role="tabpanel" aria-labelledby="fs-menu-tab" hidden={tab !== 'menu'}>
         {!collapsed && <div className="fs-sidebar-section-label">工作台系统 <span>{systems.length}</span></div>}
@@ -151,6 +167,7 @@ export function createAccountSidebar(controller: SidebarAccountController,pages?
       </section>
       <footer className="fs-sidebar-footer" ref={footer}>
         <div className="fs-sidebar-account" data-open={accountOpen}>
+          <div className="fs-sidebar-subject" title={identity.tenantName} hidden={!accountOpen}><SubjectLogo name={identity.tenantName} url={identity.logoUrl}/><span className="fs-sidebar-name"><small>当前主体</small>{identity.tenantName}</span></div>
           <div key={snapshot.activeTenantId ?? 'signed-out'} className="fs-sidebar-settings">{renderSlot('sidebar.settings', { wide: true })}</div>
           {accountOpen && <button type="button" className="fs-sidebar-exit" onClick={() => { setAccountOpen(false); void controller.logout() }}>退出登录</button>}
           {accountOpen && version && <span className="fs-sidebar-version">客户端版本 · v{version}</span>}

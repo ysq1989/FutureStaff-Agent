@@ -11,7 +11,7 @@ test('all mode surfaces retain their original store injection, identity and loca
     ...(name === 'settings.section' ? { id: 'agent-presets', order: 20 } : {}),
   } }))
   const registered = []
-  apply({ slots: {
+  apply({ inject:(_services,callback)=>callback({effect:()=>{}}),slots: {
     inject: (_name, register) => register(),
     subscribe: () => () => {},
     entries: name => originals.filter(entry => entry.options.name === name),

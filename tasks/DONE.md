@@ -334,3 +334,117 @@ restart completed with temporary CDP removed. Login confirmation required;
 authenticated runtime business operations remain unperformed. Backup/hash receipt:
 D:/项目/.codex-build/blue-system-directory-20261010/receipt.json.
 Details: tasks/blue-system-directory.md. No public installer/feed update.
+## Embedded business pages and Chinese directory — local pilot deployed 2026-10-10
+
+User authorized deployment. Clean source candidate excludes unrelated GEO
+browser-authorize/publishing work. Native build/typecheck, 19 focused native
+tests, 228-node runtime closure, platform 152 clean tests and isolated Electron
+acceptance passed. Full native baseline failures are recorded in the spec.
+Local ASAR header/native lib and six platform files replaced; 20,096 other
+package files identical. Seven Chinese system entries; internal/duplicate items
+removed. User completed desktop login; actual ERP/Visa guests loaded and were
+reused across tab/session switches, without external launch cards or stale loading
+status. Separate module login stays inside the tab. Final normal restart, no
+debug flag. No commit/push, new installer/feed or business execution. Receipt and
+rollback: D:/项目/.codex-build/embedded-systems-local-20261010/.
+
+## Shared desktop session renewal — installed 2026-10-11
+
+User authorized backup/update/restart and future same-scope local Agent updates without routine confirmation/notices.
+Host access tokens renew before authorization; protected restore refreshes persisted tokens.
+Same-owner rotation preserves guest signals; logout/revocation closes them. Native views check every minute
+and reload only on session recovery. No credential lifetime, server permission, schema or business operation changed.
+Platform 167 tests passed; native focused 9 tests, both typechecks/builds, hidden Electron renewal smoke,
+228-node closure and diff hygiene passed. Broader native suite: 1094 passed/19 failed/13 skipped and 2 update-test
+unhandled rejections; details in tasks/system-session-renewal.md, not reported as fully passing.
+Installed exactly 4 native and 6 platform runtime files; 20,373 other package files preserved.
+Six real systems passed matching-member/tenant session checks and no-password entry; same guest IDs survived
+manual Host refresh and the next minute check. Final normal restart healthy, temporary debug flag removed.
+No commit/push, server deployment, public installer/feed release or business data write.
+Backup/hash receipts/rollback: D:/项目/.codex-build/agent-session-renewal-20261011/.
+
+## Neutral Agent workbench frame — locally installed 2026-10-11
+
+User requested another UI refinement; prior same-scope local update authorization applied.
+Neutral light/dark sidebar, approved mark and separate current-subject row, semantic line icons,
+compact system tabs and integrated refresh reduce the top chrome by 49px. Existing module pages remain authoritative.
+Reused semantic controls and tokens; 21st catalog supplied sidebar/tab inspiration, no dependency installed.
+167 platform tests, typecheck/build, actual browser light/dark/narrow interactions, zero-finding scoped 21st review
+and diff checks passed. Live six-system sessions and native reuse/isolation passed; 46px toolbar and overflow verified.
+Only Client JS/map replaced; all 76 other plugin files preserved. Backup, visual receipts and checked rollback:
+D:/项目/.codex-build/agent-ui-refinement-20261011/ and final geometry adjustment ...-r2/.
+No commit/push, server deployment, business write, profile/data change or native package update.
+Details: tasks/workbench-ui-refinement.md.
+
+Same task follow-ups: collapsed navigation uses uniform 36px icon controls, maintains collapsed mode when switching
+sessions/systems or opening the account popup, and keeps the version inside that popup instead of a footer row.
+Windows main workbench maximizes once before first reveal; later tray reveals preserve user window state.
+167 platform tests, 25 focused native startup/window/session tests, both typechecks/builds and closure passed.
+Live combined UI verified default 1920px work-area width, 7 compact icons, no overflow and hidden/popup version behavior.
+Final Client receipts: .../agent-ui-refinement-20261011-final/; native receipts: .../agent-ui-maximize-20261011/.
+
+Account-popover follow-up: replace blanket guest hiding with actual overlap checks. Expanded menus leave the page
+unchanged; collapsed menus reserve their overlapping left edge, restore full width when closed, and escape only
+the account-open sidebar's native overflow clip. True modal dialogs retain native guest occlusion.
+A coalesced timeout backs up renderer RAF when Windows occlusion suspends animation frames.
+167 platform tests include suspended RAF, expanded/collapsed popovers and modal recovery. Native startup/window/session
+tests (25), both typechecks/builds, runtime closure and scoped 21st review passed. Real expanded/collapsed popover
+viewports and screenshots passed; all six real system sessions passed. Final normal restart removes temporary flags.
+Latest Client backups/hashes: D:/项目/.codex-build/agent-ui-complete-20261011/.
+Live popup receipts/screenshots: D:/项目/.codex-build/agent-account-overlay-20261011/.
+
+## Login background local installation — 2026-10-12
+
+Completed scoped desktop login visuals and authorized local 3.0.3 login-r2 installation, preserving active production Profile, remembered credentials and 37 session/database files. Internal Profile contract remains 0.1.0; rejected first installer quarantined after correcting its manifest-version mistake. Platform 181, Stable 1117 (13 existing skipped), Windows gate 190, release 7 and Profile 57 tests passed, plus actual Profile consumer and installed UI/data checks. Original CONTRACT_MISMATCH authentication error persists and authenticated business acceptance is not claimed. See tasks/login-background-local-install.md and D:/项目/.codex-build/agent-login-motion-20261012/ for final installer, receipts and rollback.
+
+## Desktop login contract and duplicate title — 2026-10-13
+
+Removed the duplicate signed-out heading and repaired strict v0.1.1 application-list decoding for the validated Website management extension. Installed a scoped plugin hotfix into the current 3.0.3 client; retained Profile contract 0.1.0, active production selection, stored login and 105 persistent files unchanged during installation. Root plugin 207 tests and isolated candidate 191 tests passed. Actual client restored ready/HTTP 200 with the original workspace member/tenant, 8 apps, 1 model, 14 authorized agents and 4 existing session rows. Temporary shape-only probe and debugging flags removed. Exact backups, verified rollback and evidence: D:/项目/.codex-build/agent-login-fix-20261013/. See tasks/login-contract-repair.md. No server changes, messages, migrations, commit or push.
+
+## ERP draft UX, account menu/archive and blue runtime icons — 2026-10-15
+
+Installed the explicitly authorized combined local candidate: 29 artifact hashes verified,
+230 unrelated code files preserved. Full plugin regression: 251 passed; build/typecheck,
+focused browser journeys and UI review passed. Actual authenticated ERP form reads returned
+8 customers and 16 products with HTTP 200; missing price remains blank. Real account popup,
+27 archive controls and extracted native blue window icon verified. Final startup is normal,
+without debugging flags. No real order or archive operation, server release, commit or push.
+Backups, receipts and inventory-retention audit: D:/项目/.codex-build/agent-erp-order-ux-20261015/.
+See tasks/erp-order-assistant-ux.md and tasks/sidebar-subject-session-archive.md.
+
+## 2026-10-15 — Local Windows blue-logo repair package
+
+Completed local NSIS rebuild and installation from the current installed runtime,
+keeping existing functionality and profile contents. EXE/runtime version aligned
+at 3.0.5; live window icon verified blue-only. Installer exit 0; original signed-in
+SHOP conversation restored. See `tasks/local-blue-logo-repack.md` for checks,
+existing full-suite version assertion mismatch, artifact and rollback evidence.
+
+## 2026-10-15 — SHOP selection sequence and local Host update
+
+Completed the SHOP requirements → real recommendation → human selection → explicit
+import request → native preview/confirmation sequence repair. Host rejects empty,
+non-user, cancelled, substituted and non-source-ID import requests. Real existing
+Shop selections stop at selection and do not offer imports. Local r3 patch installed;
+268 plugin tests, typecheck/build, installed hashes and native read-only workflow
+verified. Two provider errors remain recorded separately; continuations succeeded.
+No real goods imported. See `tasks/shop-selection-workflow.md`.
+
+
+## 2026-10-15 — SHOP visual recommendation cards and local update
+
+Completed real-image recommendations with price/stock/reasons, native image zoom,
+selection-only feedback and persistent turn-tail placement outside collapsed tools.
+Host resolves bounded real product IDs and rechecks SHOP identity/permissions.
+Final local r3 installed, 28 file hashes verified; pure blue EXE and unrelated code
+preserved. Full plugin suite: 275 passed, no failures/skips; typecheck/build, narrow
+dark browser checks and 21st review passed. Real native three-product images and
+selection-only return verified. One provider error recovered; latency remains outside
+this change. No goods imported/published. See `tasks/shop-recommendation-cards.md`.
+# 2026-10-16 双仓换机开发交接
+
+- 用户授权：两个目录均保存到独立 GitHub 仓库，并提交、推送现有成果。
+- 客户端沿用 `ysq1989/FutureStaff-Agent`，保留 Git 历史与固定子模块；后端/Web 另建私有 `ysq1989/FutureStaff-Agent-web`，排除敏感历史操作脚本与本机浏览器证据。
+- 补充文档导航、克隆与依赖安装步骤、数据/凭据单独迁移清单。保存现有源码、脚本、测试、品牌和分项任务，无功能重写。
+- 验证：产品及 Stable 桌面构建、工作区/Stable 类型检查通过；Platform 299、GEO 12、根目录 64、嵌入页面 11 项通过。完整 check 的浏览器超时、桌面差异门禁及 package 版本断言失败均保留，详见 `docs/development-handoff.md`。
+- 交付性质：开发源码快照，不是可发布安装包；不部署、不改真实数据或线上凭据。

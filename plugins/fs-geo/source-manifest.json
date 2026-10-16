@@ -22,7 +22,8 @@
     "DSH model adapter and human model labels",
     "return-to-DSH action instead of a second login/logout flow",
     "local data and billing boundary copy",
-    "remove inherited shader trailing whitespace"
+    "remove inherited shader trailing whitespace",
+    "user-approved 2026-10-10 FutureStaff.GEO path wordmark"
   ],
   "files": {
     "apps/api/ai-draft-routes.ts": {
@@ -42,8 +43,9 @@
       "adapted": true
     },
     "apps/web/App.tsx": {
-      "sha256": "24d12091c6e44ee14b6c15509f43e46da6e3e2130f3e96ff1beb2406207f531a",
-      "adapted": true
+      "sha256": "177dab1a75665bb3725dd7842794d67f014e45446b3f8e9dd12969879400d763",
+      "adapted": true,
+      "beforeLogoAdoptionSha256": "24d12091c6e44ee14b6c15509f43e46da6e3e2130f3e96ff1beb2406207f531a"
     },
     "apps/web/BrandPropagation.tsx": {
       "sha256": "46ed40938cd6e34742bb0408faec16fbc49d1138acf67c6f8ad42dc206ba7013",
@@ -216,6 +218,10 @@
     "public/licenses/react-bits.txt": {
       "sha256": "ce48406452c86d16998612d3d3b6ee54f5d6a6bb0941348785436ee866f625b5",
       "adapted": false
+    },
+    "apps/web/brand/SystemLogo.tsx": {
+      "sha256": "39edef787357257c9521a2104b9d1fe239194f3fd8e3c9a26593ac5113c9e982",
+      "adapted": true
     }
   }
 }

@@ -175,6 +175,7 @@ export interface ElectronShellGenerationOptions {
 
 /** Own one BrowserWindow and Tray generation, including every native listener. */
 export class ElectronShellGeneration {
+  private systemViews:DesktopSystemViews|undefined
   private window: BrowserWindow | undefined
   private tray: Tray | undefined
   private mounted = false
@@ -227,6 +228,7 @@ export class ElectronShellGeneration {
     refreshNativeMaterial()
     this.window = window
     const systemViews = spec.resolveSystemApplication ? new DesktopSystemViews(window, origin, spec.resolveSystemApplication) : undefined
+    this.systemViews=systemViews
 
     let stateWriteTimer: ReturnType<typeof setTimeout> | undefined
     const persistWindowState = (): void => {
@@ -471,6 +473,11 @@ export class ElectronShellGeneration {
     this.clearAttention()
     revealApplication(window, this.options.platform.platform)
     this.prepareFullscreenReveal?.()
+  }
+
+  async requestSystem(appId:string,path:string,init:RequestInit):Promise<Response> {
+    if (!this.systemViews) throw Error('SYSTEM_VIEW_UNAVAILABLE')
+    return this.systemViews.requestSystem(appId,path,init)
   }
 
   /** Reload the active renderer without permitting arbitrary renderer commands. */

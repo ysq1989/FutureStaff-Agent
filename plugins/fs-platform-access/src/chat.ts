@@ -4,6 +4,9 @@ import { createHash, randomUUID } from 'node:crypto'
 import { LlmAdapter, LlmError, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import type { PlatformProtectedSecrets } from './session-vault.js'
+import {businessToolAllowed,type BusinessSystem} from './business-scope.js'
+import {shopSelectionInstructions,shopSelectionTurnContext} from './shop-selection.js'
+import {shopThemeInstructions,normalizeThemeCatalogHistory,shopThemeCompletion,shopImageRecovery} from './shop-theme-guidance.js'
 
 export interface ChatCredentials {
   readonly accessToken: string
@@ -28,20 +31,59 @@ export function chatOwnerKey(origin: string, sessionId: string): string {
   return `futurestaff.chat.owner.${legacy ? '' : 'scoped.'}${digest}`
 }
 
-function messages(options: GenerateOptions): unknown[] {
+export type ChatImageReader = (ref: Extract<ContentBlock,{type:'image'}>['attachment'], sessionId:string, signal:AbortSignal) => Promise<{dataUrl:string;path:string}>
+
+async function content(blocks:readonly ContentBlock[],options:GenerateOptions,readImage:ChatImageReader|undefined,signal:AbortSignal,seen:Set<string>){
+ const images:string[]=[],text:ContentBlock[]=[]
+ for(const block of blocks){
+  if(block.type!=='image'){text.push(block);continue}
+  if(!readImage||images.length>=2)throw new LlmError('图片输入不可用或超过每条两张的限制。','FUTURESTAFF_IMAGES')
+  try{
+   const image=await readImage(block.attachment,options.sessionId!,signal)
+   text.push({type:'text',text:`附件图片文件：${image.path}。服装图片工具使用此相对路径。需要重新看图时只使用 read_image；不要用文本读取工具（Read、read、read_file、cat）打开 PNG/JPEG，也不要对已知图片路径反复 Glob/Grep。规格检查使用 fashion_image_process。`})
+   if(!(block as ContentBlock & {offloaded?:boolean}).offloaded){
+    const digest=createHash('sha256').update(image.dataUrl).digest('hex')
+    if(!seen.has(digest)){images.push(image.dataUrl);seen.add(digest)}
+    else text.push({type:'text',text:'这张图片已在本次请求的历史中提供，当前是同一图片的工具观察结果，不是用户新增图片或新任务。'})
+   }
+  }catch{throw new LlmError('无法读取此会话图片，请重新上传图片。','FUTURESTAFF_IMAGES')}
+ }
+ return {content:textOnly(text),...(images.length?{images}:{})}
+}
+
+async function messages(options: GenerateOptions, readImage: ChatImageReader | undefined, signal:AbortSignal): Promise<unknown[]> {
   const result: unknown[] = options.system ? [{ role: 'system', content: options.system }] : []
+  const themeCatalogCalls=new Set<string>()
   for (const message of options.messages) {
+    const seen=new Set<string>()
     if (message.content.some(block => block.type === 'tool-result')) {
       if (message.role !== 'user' || message.content.length !== 1 || message.content[0]?.type !== 'tool-result') throw invalid()
       const block = message.content[0]
-      result.push({ role: 'tool', content: textOnly(block.content), toolCallId: block.toolCallId })
+      const blocks=themeCatalogCalls.has(block.toolCallId)&&message.source?.kind==='tool'?block.content.map(b=>b.type==='text'?{...b,text:normalizeThemeCatalogHistory(b.text)}:b):block.content
+      result.push({ role: 'tool', ...await content(blocks,options,readImage,signal,seen), toolCallId: block.toolCallId })
       continue
     }
-    const content = textOnly(message.content.filter(block => block.type !== 'tool-call'))
+    if(message.role!=='user'&&message.content.some(block=>block.type==='image'))throw invalid()
+    for(const block of message.content)if(message.role==='assistant'&&block.type==='tool-call'&&block.name==='shop_theme_tools')themeCatalogCalls.add(block.id)
+    const encoded=await content(message.content.filter(block=>block.type!=='tool-call'),options,readImage,signal,seen)
     const toolCalls = message.content.filter(block => block.type === 'tool-call').map(block => ({
       id: block.id, name: block.name, arguments: block.arguments,
     }))
-    result.push({ role: message.role, content, ...(toolCalls.length ? { toolCalls } : {}) })
+    result.push({ role: message.role, ...encoded, ...(toolCalls.length ? { toolCalls } : {}) })
+  }
+  // Model input is a rolling visual window, not a cap on durable session history.
+  const seen=new Set<string>();let count=0,bytes=0
+  for(const item of [...result].reverse()){
+    const message=item as {images?:string[];content:string}
+    if(!message.images)continue
+    const retained:string[]=[]
+    for(const image of [...message.images].reverse()){
+      const digest=createHash('sha256').update(image).digest('hex')
+      if(!seen.has(digest)&&count<4&&bytes+image.length<=8_000_000){retained.unshift(image);count++;bytes+=image.length}
+      seen.add(digest)
+    }
+    if(retained.length!==message.images.length)message.content+='\n部分历史图片像素未加入本次视觉窗口，文件和观察记录仍保留。需要比较或重新查看时，用 read_image 读取上述路径；不要将未提供的像素当成已观察。'
+    if(retained.length)message.images=retained;else delete message.images
   }
   return result
 }
@@ -53,6 +95,7 @@ function record(value: unknown): value is Record<string, unknown> {
 /** Host-only platform transport. No renderer route exposes the bearer credential. */
 export class FutureStaffChatAdapter extends LlmAdapter {
   #bindingQueue: Promise<void> = Promise.resolve()
+  #callQueue: Promise<void> = Promise.resolve()
   readonly #lifetime = new AbortController()
 
   constructor(
@@ -61,7 +104,8 @@ export class FutureStaffChatAdapter extends LlmAdapter {
     private readonly fetcher: typeof fetch = fetch,
     private readonly origin: string = 'https://dev.fsstory.net',
     private readonly catalog: () => Promise<readonly PlatformModel[]> = async () => [],
-    private readonly agentBinding?: (sessionId: string) => Promise<{ agentId: string; version: string } | undefined>,
+    private readonly agentBinding?: (sessionId: string) => Promise<{ agentId: string; version: string;businessSystems?:BusinessSystem[] } | undefined>,
+    private readonly readImage?: ChatImageReader,
   ) { super(); assertPlatformOrigin(origin) }
 
   dispose(): void { this.#lifetime.abort() }
@@ -70,8 +114,10 @@ export class FutureStaffChatAdapter extends LlmAdapter {
     return { mode: 'normal' as const, maxRetries: 0, retryableCodes: [], initialDelayMs: 0, maxDelayMs: 0, jitterRatio: 0 }
   }
   override async listModels() {
-    return [{ provider: 'futurestaff', id: 'default', name: '平台默认模型', inputModalities: ['text'] as const },
-      ...(await this.catalog()).map(model => ({ provider: 'futurestaff', id: model.modelId, name: model.displayName, inputModalities: ['text'] as const }))]
+    const models=await this.catalog()
+    const modalities=(vision:boolean)=>vision?['text','image'] as const:['text'] as const
+    return [{ provider: 'futurestaff', id: 'default', name: '平台默认模型', inputModalities: modalities(models.find(x=>x.isDefault)?.supportsVision===true) },
+      ...models.map(model => ({ provider: 'futurestaff', id: model.modelId, name: model.displayName, inputModalities: modalities(model.supportsVision) }))]
   }
   override async resolveModel(provider: string, model: string) {
     if (provider !== 'futurestaff') throw unavailable()
@@ -128,12 +174,24 @@ export class FutureStaffChatAdapter extends LlmAdapter {
   }
 
   async *#stream(options: GenerateOptions, credentials: ChatCredentials): AsyncIterable<StreamChunk> {
+    const previous=this.#callQueue
+    let release!:()=>void
+    const ticket=new Promise<void>(resolve=>{release=resolve})
+    this.#callQueue=previous.then(()=>ticket,()=>ticket)
+    try {
+      await previous
+      credentials.signal.throwIfAborted();options.signal?.throwIfAborted();this.#lifetime.signal.throwIfAborted()
+      yield* this.#run(options,credentials)
+    } finally {release()}
+  }
+
+  async *#run(options: GenerateOptions, credentials: ChatCredentials): AsyncIterable<StreamChunk> {
     try { await this.#bind(options, credentials) } catch (error) {
       credentials.signal.throwIfAborted()
       if (error instanceof LlmError) throw error
       throw new LlmError('无法保存此会话的账号归属，请检查本机受保护存储。', 'FUTURESTAFF_STORAGE')
     }
-    let agent: { agentId: string; version: string } | undefined
+    let agent: { agentId: string; version: string;businessSystems?:BusinessSystem[] } | undefined
     try {
       agent = this.agentBinding && options.sessionId ? await this.agentBinding(options.sessionId) : undefined
     } catch {
@@ -141,10 +199,34 @@ export class FutureStaffChatAdapter extends LlmAdapter {
       throw new LlmError('智能体会话归属无法确认，请重新选择智能体并新建会话。', 'FUTURESTAFF_AGENT_BINDING')
     }
     if (this.agentBinding && !agent) throw new LlmError('请先选择智能体，再创建会话；历史会话保留在旧工作区。', 'FUTURESTAFF_AGENT_REQUIRED')
+    if(options.tools)options={...options,tools:options.tools.filter(tool=>businessToolAllowed(tool.name,agent?.businessSystems))}
+    let themeRecovery:ReturnType<typeof shopImageRecovery>
+    if(agent?.businessSystems?.includes('shop')&&!options.purpose){
+      const recovery=shopImageRecovery(options.messages)
+      themeRecovery=recovery
+      const completion=recovery?.stop?recovery.notice:shopThemeCompletion(options.messages,this.origin)
+      if(completion){
+        credentials.signal.throwIfAborted();options.signal?.throwIfAborted();this.#lifetime.signal.throwIfAborted()
+        yield {type:'block-start',index:0,blockType:'text'}
+        yield {type:'text-delta',index:0,text:completion}
+        yield {type:'block-end',index:0,block:{type:'text',text:completion}}
+        yield {type:'finish',reason:{kind:'stop'}}
+        return
+      }
+      if(recovery&&options.tools)options={...options,tools:options.tools.filter(tool=>!['agent_image_generate','fashion_image_generate','website_image_generate'].includes(tool.name))}
+      const selection=shopSelectionTurnContext(options.messages)
+      options={...options,system:[options.system,shopSelectionInstructions,shopThemeInstructions,selection,recovery?recovery.notice+' 本会话有待恢复图片，agent_image_generate暂不可用。先agent_image_status查询上述原请求，成功才继续上传；失败/unknown明确停止。':undefined].filter(Boolean).join('\n\n'),
+        ...(selection&&options.tools?{tools:options.tools.filter(tool=>!['shop_call','ask_user_question'].includes(tool.name))}:{})}
+    }
+    if(options.messages.some(m=>m.content.some(b=>(b.type==='tool-result'?b.content:[b]).some(image=>image.type==='image'&&!(image as ContentBlock & {offloaded?:boolean}).offloaded)))){
+      const selected=(await this.catalog()).find(m=>m.modelId===credentials.modelId)
+      if(!selected?.supportsVision)throw new LlmError('当前模型不支持图片，请选择支持图片的模型。','FUTURESTAFF_IMAGES')
+    }
+    const wireMessages=await messages(options,this.readImage,credentials.signal)
     const body = JSON.stringify({ requestId: randomUUID(), modelId: credentials.modelId,
       ...(agent ? { agentId: agent.agentId, agentVersion: agent.version } : {}),
-      messages: messages(options), tools: options.tools ?? [], maxTokens: Math.min(options.maxTokens ?? 4096, 8192) })
-    if (Buffer.byteLength(body) > 512 * 1024) throw new LlmError('会话内容过长，请新建会话。', 'FUTURESTAFF_LIMIT')
+      messages: wireMessages, tools: options.tools ?? [], maxTokens: Math.min(options.purpose==='session-title'?Math.max(options.maxTokens??32,512):options.maxTokens??4096, 8192) })
+    if (Buffer.byteLength(body) > 9 * 1024 * 1024) throw new LlmError('会话内容过长，请新建会话。', 'FUTURESTAFF_LIMIT')
     const abort = new AbortController()
     const timeout = setTimeout(() => abort.abort(), 130_000)
     timeout.unref()
@@ -156,7 +238,7 @@ export class FutureStaffChatAdapter extends LlmAdapter {
       let response: Response
       try {
         response = await this.fetcher(`${this.origin}/desktop/v1/chat`, { method: 'POST', redirect: 'error', cache: 'no-store', signal,
-          headers: { authorization: `Bearer ${credentials.accessToken}`, 'content-type': 'application/json', accept: 'application/x-ndjson' }, body })
+          headers: { authorization: `Bearer ${credentials.accessToken}`, 'content-type': 'application/json', accept: 'application/x-ndjson', 'x-futurestaff-chat-heartbeat':'1' }, body })
       } catch { signal.throwIfAborted(); throw unavailable() }
       if (!response.ok) {
         await response.body?.cancel()
@@ -187,11 +269,14 @@ export class FutureStaffChatAdapter extends LlmAdapter {
         while ((newline = buffer.indexOf('\n')) !== -1) {
           const line = buffer.slice(0, newline)
           buffer = buffer.slice(newline + 1)
+          if(!line.trim())continue
           let event: unknown
           try { event = JSON.parse(line) } catch { throw invalid() }
           if (!record(event)) throw invalid()
           if (event.type === 'text') {
             if (Object.keys(event).sort().join(',') !== 'text,type' || typeof event.text !== 'string') throw invalid()
+            // Pending image work cannot stream an unverified success claim, even on a later user turn.
+            if(themeRecovery)continue
             if (!started) { started = true; yield { type: 'block-start', index, blockType: 'text' } }
             yield { type: 'text-delta', index, text: event.text }
           } else if (event.type === 'error') {
@@ -213,12 +298,13 @@ export class FutureStaffChatAdapter extends LlmAdapter {
               ids.add(call.id)
             }
             if ((event.toolCalls.length > 0) !== (event.finishReason === 'tool-calls')) throw invalid()
-            if (started || event.content) {
+            const resultText=themeRecovery?(event.toolCalls.length?'正在按原图片请求恢复装修。':themeRecovery.notice):event.content
+            if (started || resultText) {
               if (!started) {
                 yield { type: 'block-start', index, blockType: 'text' }
-                yield { type: 'text-delta', index, text: event.content }
+                yield { type: 'text-delta', index, text: resultText }
               }
-              yield { type: 'block-end', index: index++, block: { type: 'text', text: event.content } }
+              yield { type: 'block-end', index: index++, block: { type: 'text', text: resultText } }
             }
             for (const call of event.toolCalls as { id: string; name: string; arguments: string }[]) {
               const id = ToolCallId(call.id)

@@ -3,13 +3,15 @@ import type {} from '@deepseek-ai/dsh-host-webserver';
 import type {} from '@futurestaff/fs-platform-access';
 import type { IncomingMessage,ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
-import { GeoDesktopService } from './service.js';
-import { authorizeGeo } from './authorization.js';
+import {z} from 'zod';
+import {GeoAgentBridge} from './agent-bridge.js';
+import {ToutiaoAccountProfiles} from './publication-accounts.js';
+import {authorizeGeo} from './authorization.js';
+import type { GeoDesktopService } from './service.js';
 
-export const inject=['webServer','platformDevLogin','platformInference'];
+export const inject=['webServer','platformDevLogin'];
 export const routePrefix='/_futurestaff/geo';
 export function geoRequestAllowed(request:IncomingMessage,api=false){
   if(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(request.socket.remoteAddress??'')||request.headers['sec-fetch-site']==='cross-site')return false;
@@ -66,8 +68,28 @@ export function createGeoHandler(service:GeoDesktopService,assets:string){
  };
 }
 export function apply(ctx:Context){
- const service=new GeoDesktopService({root:path.join(os.homedir(),'.futurestaff','geo'),authorize:()=>authorizeGeo(ctx.platformDevLogin),inference:ctx.platformInference});
- const assets=fileURLToPath(new URL('./ui/',import.meta.url));
- ctx.effect(()=>ctx.webServer.register({kind:'prefix',path:routePrefix+'/',handler:createGeoHandler(service,assets)}),'futurestaff-geo: local system routes');
- ctx.effect(()=>()=>service.close(),'futurestaff-geo: embedded database lifecycle');
+ const bridge=new GeoAgentBridge({authorize:()=>authorizeGeo(ctx.platformDevLogin),authorizeBrowser:input=>ctx.platformDevLogin.authorizeGeoBrowser(input),
+  profiles:authorize=>new ToutiaoAccountProfiles(path.join(os.homedir(),'.futurestaff','geo-publishing','accounts'),authorize),
+  lookupAccount:async input=>{
+   const grant=await ctx.platformDevLogin.issueApplicationToken('geo');
+   const expected=input.origin==='https://geo.fsstory.net'?'futurestaff-geo-prod':'futurestaff-geo-dev';
+   if(grant.audience!==expected||grant.tenantId!==input.owner.tenantId||grant.expiresIn!==60)throw Error('GEO_ACCOUNT_SCOPE_REJECTED');
+   const response=await fetch(input.origin+'/api/geo/native/v1/account',{method:'POST',redirect:'error',signal:AbortSignal.any([input.owner.signal,AbortSignal.timeout(5000)]),headers:{authorization:'Bearer '+grant.accessToken,'content-type':'application/json'},body:JSON.stringify({projectId:input.projectId,accountId:input.accountId})});
+   if(!response.ok)throw Error('GEO_ACCOUNT_SCOPE_REJECTED');
+   return z.object({data:z.object({tenantId:z.uuid(),userId:z.uuid(),projectId:z.uuid(),account:z.object({id:z.uuid(),platform:z.literal('toutiao'),label:z.string().max(200)}).strict()}).strict()}).strict().parse(await response.json()).data;
+  },
+ });
+ // User selected cloud-owned GEO data. Preserve legacy code/files, but do not
+ // expose another writable local workspace through the active product plugin.
+ ctx.effect(()=>ctx.webServer.register({kind:'prefix',path:routePrefix+'/',handler:async(request,response)=>{
+  if(request.url!==routePrefix+'/launch')return failure(response,409,'GEO_CLOUD_WORKSPACE_REQUIRED','请使用云端 GEO 工作台；旧本地数据已保留');
+  if(!geoRequestAllowed(request,true)||request.method!=='POST')return failure(response,403,'LOCAL_REQUEST_REQUIRED','请从 Agent 打开 GEO');
+  try{
+   if(!String(request.headers['content-type']).startsWith('application/json'))throw Error();
+   let size=0;const chunks:Buffer[]=[];for await(const raw of request){const bytes=Buffer.from(raw);size+=bytes.length;if(size>1024)throw Error();chunks.push(bytes)}
+   z.object({}).strict().parse(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+   const result=await bridge.launch();response.setHeader('content-type','application/json');response.setHeader('cache-control','no-store');response.end(JSON.stringify({data:result}));
+  }catch{return failure(response,503,'GEO_LAUNCH_UNAVAILABLE','GEO 登录交接暂不可用，请核对 Agent 和 Platform 版本及应用授权')}
+ }}),'futurestaff-geo: cloud workspace boundary');
+ ctx.effect(()=>()=>bridge.close(),'futurestaff-geo: local bridge lifecycle');
 }

@@ -1,12 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { lstat, mkdir, readFile, realpath, rename, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, readFile, realpath, rename, writeFile, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { requireUuid } from './contracts.js'
 import { assertPlatformOrigin } from './environment.js'
 import type { WorkspaceIdentity } from './workspace.js'
+import {decodeBusinessSystems,type BusinessSystem} from './business-scope.js'
 
 export interface AgentCard { agentId: string; name: string; description: string; available: boolean; unavailableReason: string | null }
-export interface AgentSnapshot { agentId: string; name: string; description: string; version: string; files: { path: string; content: string }[] }
+export interface AgentSnapshot { agentId: string; name: string; description: string; version: string; files: { path: string; content: string }[]; businessSystems?:BusinessSystem[] }
 export interface AgentCredentials { accessToken: string; tenantId: string; userId: string; signal: AbortSignal }
 const id = (value: string) => requireUuid({id:value},'id').toLowerCase()
 const error = () => new Error('AGENT_CONTRACT_INVALID')
@@ -18,12 +19,13 @@ export function agentFileAllowed(value: string): boolean {
     || /^(skills\/|workspace\/knowledge_base\/).+\.(md|txt|csv)$/i.test(value)
 }
 export function decodeAgentSnapshot(value: unknown): AgentSnapshot {
-  if(!record(value)||Object.keys(value).sort().join()!=='agentId,description,files,name,version'
+  if(!record(value)||!['agentId,description,files,name,version','agentId,businessSystems,description,files,name,version'].includes(Object.keys(value).sort().join())
     ||typeof value.agentId!=='string'||typeof value.name!=='string'||!value.name.trim()||value.name.length>200
     ||typeof value.description!=='string'||value.description.length>2000
     ||typeof value.version!=='string'||!(/^[a-f0-9]{64}$/).test(value.version)
     ||!Array.isArray(value.files)||value.files.length>128)throw error()
   id(value.agentId)
+  if('businessSystems' in value)decodeBusinessSystems(value.businessSystems)
   let size=0;const seen=new Set<string>()
   for(const file of value.files){
     if(!record(file)||Object.keys(file).sort().join()!=='content,path'||typeof file.path!=='string'
@@ -91,12 +93,28 @@ export class AgentWorkspaceStore {
   async materialize(raw:AgentSnapshot,signal:AbortSignal):Promise<string>{
     const snapshot=decodeAgentSnapshot(raw);signal.throwIfAborted()
     const directory=this.directory(snapshot.agentId)
+    let previous:AgentSnapshot|undefined
+    try{previous=await this.snapshot(snapshot.agentId)}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e}
     for(const suffix of ['definition','memory','workspace','sessions'])await ensureTree(path.join(directory,suffix))
     for(const file of snapshot.files){
       signal.throwIfAborted()
       const target=path.join(directory,'workspace','.futurestaff-agent','definition',...file.path.split('/'))
       await ensureTree(path.dirname(target))
       try{if((await lstat(target)).isSymbolicLink())throw new Error('AGENT_FILE_UNSAFE')}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e}
+      const temporary=`${target}.${randomUUID()}.tmp`;await writeFile(temporary,file.content,{flag:'wx',mode:0o600});await rename(temporary,target)
+    }
+    // Native skill discovery uses the session's project .agents/skills root.
+    // Only platform-projected files are reconciled; never overwrite human edits.
+    for(const file of [...snapshot.files.filter(f=>f.path.startsWith('skills/')),...(previous?.files??[]).filter(f=>f.path.startsWith('skills/')&&!snapshot.files.some(current=>current.path===f.path))]){
+      signal.throwIfAborted()
+      const target=path.join(directory,'workspace','.agents',...file.path.split('/'))
+      await ensureTree(path.dirname(target))
+      let existing:string|undefined
+      try{if((await lstat(target)).isSymbolicLink())throw new Error('AGENT_FILE_UNSAFE');existing=await readFile(target,'utf8')}
+      catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e}
+      const old=previous?.files.find(f=>f.path===file.path)
+      if(existing!==undefined&&existing!==file.content&&existing!==old?.content)throw new Error('AGENT_SKILL_LOCAL_CONFLICT')
+      if(!snapshot.files.some(current=>current.path===file.path)){if(existing!==undefined)await unlink(target);continue}
       const temporary=`${target}.${randomUUID()}.tmp`;await writeFile(temporary,file.content,{flag:'wx',mode:0o600});await rename(temporary,target)
     }
     signal.throwIfAborted()

@@ -105,9 +105,9 @@ test('client registers Settings access and a mandatory login gate', () => {
     },
   }
 
-  applyClient({ slots })
+  applyClient({ slots,inject:(_services,callback)=>callback({effect:()=>{}}) })
 
-  assert.deepEqual(slotNames, ['sidebar.workspaces', 'conversation.hero.workspace', 'sidebar', 'sidebar.brand.mark', 'sidebar.brand.name', 'conversation.hero.brand.mark', 'conversation', 'conversation.hero.agentPreset', 'conversation.session.header.actions', 'settings.section', 'conversation.chat.node', 'settings.section', 'settings.section', 'shell.overlay', 'tool.call.toolview', 'tool.call.toolview', 'tool.call.toolview', 'tool.call.toolview', 'shell.overlay', 'shell.overlay'])
+  assert.deepEqual(slotNames, ['sidebar.workspaces', 'conversation.hero.workspace', 'sidebar', 'sidebar.brand.mark', 'sidebar.brand.name', 'conversation.hero.brand.mark', 'conversation', 'conversation.view', 'conversation.hero.agentPreset', 'conversation.session.header.actions', 'settings.section', 'conversation.chat.node', 'settings.section', 'settings.section', 'shell.overlay', 'tool.call.toolview', 'tool.call.toolview', 'tool.call.toolview', 'tool.call.toolview', 'shell.overlay', 'shell.overlay', 'tool.call.toolview', 'tool.call.toolview', 'tool.call.toolview', 'conversation.chat.turnTail', 'shell.overlay', 'tool.call.toolview', 'tool.call.toolview', 'tool.call.toolview','tool.call.toolview','conversation.chat.turnTail'])
   assert.deepEqual(registrations, [
     { name: 'sidebar.brand.mark', priority: -100 },
     { name: 'sidebar.brand.name', priority: -100 },
@@ -122,6 +122,16 @@ test('client registers Settings access and a mandatory login gate', () => {
     { name: 'tool.call.toolview', key: 'erp_prepare_action' },
     { name: 'shell.overlay', id: 'futurestaff-erp-window', order: 20 },
     { name: 'shell.overlay', id: 'futurestaff-erp-view-events', order: 19 },
+    { name: 'tool.call.toolview', key: 'shop_call' },
+    { name: 'tool.call.toolview', key: 'shop_operation_status' },
+    { name: 'tool.call.toolview', key: 'shop_recommend_products' },
+    { name:'conversation.chat.turnTail',priority:-90,select:registrations.find(row=>row.name==='conversation.chat.turnTail'&&row.priority===-90).select },
+    { name: 'shell.overlay', id: 'futurestaff-shop-operation', order: 21 },
+    { name: 'tool.call.toolview', key: 'fashion_image_generate', priority: -100 },
+    { name: 'tool.call.toolview', key: 'fashion_image_process', priority: -100 },
+    { name: 'tool.call.toolview', key: 'fashion_image_download', priority: -100 },
+    { name: 'tool.call.toolview', key: 'fashion_detail_material', priority: -100 },
+    { name:'conversation.chat.turnTail',priority:-100,select:registrations.find(row=>row.name==='conversation.chat.turnTail'&&row.priority===-100).select },
   ])
   assert.ok(components.every(component => typeof component === 'function'))
   const mark = components[0]({ size: 24 })
@@ -144,7 +154,7 @@ test('client registers Settings access and a mandatory login gate', () => {
   const gate = components[6]()
   assert.equal(settings.props.controller, gate.props.controller)
   const second = []
-  applyClient({ slots: {
+  applyClient({ inject:(_services,callback)=>callback({effect:()=>{}}),slots: {
     inject: (_name, register) => register(),
     subscribe: () => () => {},
     entries: () => [{ options: { key: 'context' }, component: OriginalContext }],

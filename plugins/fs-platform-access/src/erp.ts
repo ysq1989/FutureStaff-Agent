@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { InteractionRegistry, type InteractionView, type OwnedView } from './interaction.js'
+import { normalizeOrderDraft } from './erp-order-draft.js'
 
 type Identity={accessToken:string;tenantId:string;userId:string;signal:AbortSignal}
 type Data=Record<string,unknown>
@@ -28,14 +29,16 @@ function allow(g:Grant,action:string){if(g.policy.enabled!==true||!Array.isArray
 export class ErpService {
  private views:InteractionRegistry<ErpView,Saved>
  readonly erpOrigin:string
- constructor(private origin:string,private authorize:()=>Promise<Identity>,private fetcher:typeof fetch=fetch,private now=()=>Date.now()){
+ constructor(private origin:string,private authorize:()=>Promise<Identity>,private fetcher:typeof fetch=fetch,private now=()=>Date.now(),private authorizeSession?:(sessionId:string)=>Promise<void|{agentId:string;version:string}>){
   this.views=new InteractionRegistry('erp',{now,invalidError:'ERP_VIEW_EXPIRED'})
   if(!['https://platform.fsstory.net','https://platform-dev.fsstory.net','https://dev.fsstory.net'].includes(origin))throw Error('ERP_ORIGIN_INVALID')
   this.erpOrigin=origin==='https://platform.fsstory.net'?'https://erp.fsstory.net':'https://erp-dev.fsstory.net'
  }
- private async grant(signal?:AbortSignal):Promise<Grant>{
+ private async grant(signal?:AbortSignal,sessionId?:string):Promise<Grant>{
+  let binding:void|{agentId:string;version:string}=undefined
+  if(this.authorizeSession){if(!sessionId)throw Error('ERP_SESSION_REQUIRED');binding=await this.authorizeSession(sessionId)}
   const original=await this.authorize();const identity={...original,signal:signal?AbortSignal.any([original.signal,signal]):original.signal};identity.signal.throwIfAborted()
-  const response=await this.fetcher(this.origin+'/api/application-settings/v1/futurestaff-erp/agent/token',{method:'POST',headers:{Authorization:'Bearer '+identity.accessToken},signal:identity.signal})
+  const response=await this.fetcher(this.origin+'/api/application-settings/v1/futurestaff-erp/agent/token',{method:'POST',headers:{Authorization:'Bearer '+identity.accessToken,'Content-Type':'application/json'},...(binding?{body:JSON.stringify({agentId:binding.agentId,agentVersion:binding.version})}:{}),signal:identity.signal})
   if(!response.ok)throw Error(response.status===403?'ERP_PERMISSION_DENIED':'ERP_AUTH_REQUIRED')
   const t=object(await response.json())
   if(t.tenantId!==identity.tenantId||t.memberId!==identity.userId||t.tokenType!=='Bearer'||t.expiresIn!==60||t.audience!==(this.erpOrigin==='https://erp.fsstory.net'?'futurestaff-erp-prod':'futurestaff-erp-dev')||typeof t.accessToken!=='string')throw Error('ERP_IDENTITY_MISMATCH')
@@ -52,7 +55,7 @@ export class ErpService {
  }
  private save(g:Grant,sessionId:string,kind:ErpView['kind'],resource:string,data:unknown,extra:Partial<Saved>={}):ErpView{
   if(!sessionId||sessionId.length>128)throw Error('ERP_SESSION_REQUIRED')
-  const view:ErpView={schemaVersion:1,module:'erp',viewId:randomUUID(),kind,title:titles[resource]??'业务报表',resource,data,sessionId,summary:kind==='preview'?'请在业务窗口核对并确认，尚未执行。':kind==='form'?'请在业务窗口选择客户或供应商、产品与数量。':JSON.stringify(data)}
+  const view:ErpView={schemaVersion:1,module:'erp',viewId:randomUUID(),kind,title:titles[resource]??'业务报表',resource,data,sessionId,summary:kind==='preview'?'请在业务窗口核对并确认，尚未执行。':kind==='form'?'订单草稿已打开，请补全缺项并核对；预览不保存，确认后才创建草稿订单。':JSON.stringify(data)}
   return this.views.put({view,owner:owner(g),policy:signature(g.policy),signal:g.signal,...extra})
  }
  subscribe(listener:(view:ErpView,owner:string)=>void){return this.views.subscribe(listener)}
@@ -65,16 +68,24 @@ export class ErpService {
   if(value.search!==undefined){if(typeof value.search!=='string'||value.search.length>100)throw Error('ERP_INPUT_INVALID');params.set('search',value.search)}
   if(value.page!==undefined){if(!Number.isInteger(value.page)||Number(value.page)<1)throw Error('ERP_INPUT_INVALID');params.set('page',String(value.page));params.set('page_size','50')}
   if(value.status!==undefined){if(typeof value.status!=='string'||value.status.length>30)throw Error('ERP_INPUT_INVALID');params.set('status',value.status)}
-  const g=await this.grant(signal);const path=resource+(value.id?'/'+identifier(value.id):'')+(params.size?'?'+params:'')
+  const g=await this.grant(signal,sessionId);const path=resource+(value.id?'/'+identifier(value.id):'')+(params.size?'?'+params:'')
   return this.save(g,sessionId,value.id?'entity':'table',resource,await this.request(g,'GET',path))
  }
- async form(kind:'sales'|'purchase',sessionId:string,signal?:AbortSignal):Promise<ErpView>{
+ async form(kind:'sales'|'purchase',sessionId:string,signal?:AbortSignal,input?:unknown):Promise<ErpView>{
   if(!['sales','purchase'].includes(kind))throw Error('ERP_INPUT_INVALID')
-  const g=await this.grant(signal);allow(g,kind+'.create')
+  const draft=normalizeOrderDraft(kind,input)
+  const g=await this.grant(signal,sessionId);allow(g,kind+'.create')
   if(kind==='purchase'&&!(g.policy.sensitive as string[])?.includes('purchase_price'))throw Error('ERP_PERMISSION_DENIED')
-  const partners=await this.request(g,'GET',kind==='sales'?'customers?page=1&page_size=100':'suppliers?page=1&page_size=100')
-  const items=await this.request(g,'GET',kind==='sales'?'products':'materials')
-  return this.save(g,sessionId,'form',kind==='sales'?'sales-orders':'purchase-orders',{operation:kind+'.create',partners,items})
+  const list=(value:unknown):Data[]=>Array.isArray(value)?value as Data[]:Array.isArray((value as Data)?.items)?(value as Data).items as Data[]:[]
+  const partners=list(await this.request(g,'GET',kind==='sales'?'customers?page=1&page_size=100':'suppliers?page=1&page_size=100'))
+  const items=list(await this.request(g,'GET',kind==='sales'?'products':'materials'))
+  // Reread every suggested ID under the same grant, including records outside the first page.
+  const verified=new Set<string>()
+  const include=async(resource:string,id:string,list:Data[])=>{const key=resource+'/'+id;if(verified.has(key))return;verified.add(key);const row=object(await this.request(g,'GET',key));if(row.id!==id||['inactive','disabled','停用'].includes(String(row.status)))throw Error('ERP_RECORD_UNAVAILABLE');const index=list.findIndex(item=>item.id===id);if(index<0)list.push(row);else list[index]=row}
+  const partner=draft[kind==='sales'?'customer_id':'supplier_id']
+  if(partner)await include(kind==='sales'?'customers':'suppliers',partner,partners)
+  for(const item of draft.items??[]){const id=item[kind==='sales'?'product_id':'material_id'];if(id)await include(kind==='sales'?'products':'materials',id,items)}
+  return this.save(g,sessionId,'form',kind==='sales'?'sales-orders':'purchase-orders',{operation:kind+'.create',partners,items,draft})
  }
  private async references(g:Grant,body:Data,id:string|undefined,op:string,labels?:Data[]):Promise<Map<string,string>>{
   const refs=new Map<string,string>();const paths:Record<string,string>={customer_id:'customers',supplier_id:'suppliers',product_id:'products',material_id:'materials',warehouse_id:'warehouses',from_warehouse_id:'warehouses',to_warehouse_id:'warehouses'}
@@ -93,7 +104,7 @@ export class ErpService {
   if(JSON.stringify(body).length>32000)throw Error('ERP_INPUT_INVALID')
   keys(body,['customer_id','supplier_id','product_id','material_id','warehouse_id','from_warehouse_id','to_warehouse_id','order_date','due_date','notes','items','quantity','new_status','record_source','reason','category_id','payment_type','related_order_id','amount','payment_date','payment_method','discount','tax_amount'])
   if(Array.isArray(body.items))for(const item of body.items)keys(object(item),['product_id','material_id','quantity','unit_price','notes'])
-  const g=await this.grant(signal);allow(g,op)
+  const g=await this.grant(signal,sessionId);allow(g,op)
   if(op.startsWith('purchase.')&&!(g.policy.sensitive as string[])?.includes('purchase_price'))throw Error('ERP_PERMISSION_DENIED')
   const labels:Data[]=[];const references=await this.references(g,body,id,op,labels)
   return this.save(g,sessionId,'preview',spec.resource,{operation:op,body,...(id?{id}:{}),references:labels},{operation:op,body:JSON.parse(JSON.stringify(body)),...(id?{id}:{}),key:randomUUID(),references})
@@ -118,13 +129,13 @@ export class ErpService {
   return this.prepare({operation:op,...(suffix?{id:identifier(suffix)}:{}),body:value.body??value.data??{}},sessionId,signal)
  }
  async view(viewId:string,sessionId:string):Promise<ErpView>{
-  const g=await this.grant();const saved=this.checked(g,viewId,sessionId);return saved.result??saved.view
+  const g=await this.grant(undefined,sessionId);const saved=this.checked(g,viewId,sessionId);return saved.result??saved.view
  }
  private checked(g:Grant,id:string,session:string){
   return this.views.checked(id,session,owner(g),signature(g.policy))
  }
  async confirm(viewId:string,sessionId:string):Promise<ErpView>{
-  const g=await this.grant(),v=this.checked(g,viewId,sessionId)
+  const g=await this.grant(undefined,sessionId),v=this.checked(g,viewId,sessionId)
   if(!v.operation||!v.body||!v.key)throw Error('ERP_CONFIRMATION_REQUIRED')
   allow(g,v.operation)
   if(v.result)return v.result

@@ -4,7 +4,7 @@ import type { PlatformAccessSnapshot } from './controller.js'
 const aliases: Readonly<Record<string, string>> = {
   vietnam_immigration: 'immigration', product_hub: 'hub', futurestaff_ai: 'ai',
 }
-const systems = new Set(['erp', 'hub', 'shop', 'ai', 'geo', 'immigration'])
+const systems = new Set(['erp', 'hub', 'shop', 'web', 'ai', 'geo', 'immigration'])
 export const systemApplicationId = (id: string): string => aliases[id] ?? id
 
 /** Navigation uses current server discovery, never a renderer-supplied URL. */

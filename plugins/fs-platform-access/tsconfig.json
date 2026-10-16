@@ -4,6 +4,7 @@
     "rootDir": "src",
     "outDir": "lib",
     "jsx": "react-jsx",
+    "paths": { "@deepseek-ai/dsh-llm": ["./node_modules/@deepseek-ai/dsh-llm/lib/types/index.d.ts"] },
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]

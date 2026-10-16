@@ -34,6 +34,8 @@ test('account sidebar preserves sessions and settings but replaces legacy launch
     renderSlot: (name, props) => { slots.push({ name, props }); return createElement('div', null, name) },
   }))
   assert.match(html, /当前主体/)
+  assert.match(html, /class="fs-sidebar-account"[^>]*>[\s\S]*class="fs-sidebar-subject"[^>]*hidden=""[\s\S]*当前主体[\s\S]*class="fs-sidebar-settings"/)
+  assert.doesNotMatch(html.slice(0, html.indexOf('<footer')), /class="fs-sidebar-subject"/)
   assert.match(html, /测试用户，用户菜单/)
   assert.match(html, /aria-expanded="false"/)
   assert.match(html, /id="fs-menu-panel"[^>]+hidden/)
@@ -51,7 +53,7 @@ test('product sidebar preserves the native child slot declarations and navigatio
   const OriginalSidebar = () => null
   const original = { options: {}, locale: 'sidebar', children, inject, component: OriginalSidebar }
   const registered = []
-  apply({ slots: {
+  apply({ inject:(_services,callback)=>callback({effect:()=>{}}),slots: {
     inject: (_name, register) => register(),
     subscribe: () => () => {},
     entries: name => name === 'sidebar' ? [original] : [],

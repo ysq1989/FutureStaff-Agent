@@ -11,6 +11,7 @@ test('browser handoffs send a single JSON content type that FastAPI can parse',a
    {redirectUrl:value.redirectUri+'?code='+'a'.repeat(43)+'&state='+value.state,meta:{contractVersion:'0.1.1',simulated:false}})
  },'https://platform.fsstory.net')
  await api.authorizeModuleBrowser('host-only','erp',input)
+ await api.authorizeModuleBrowser('host-only','web',{...input,clientId:'futurestaff-web-prod',redirectUri:'https://web.fsstory.net/oauth/callback/futurestaff'})
  await api.authorizeAiWeb('host-only',{codeChallenge:input.codeChallenge,state:input.state})
  await api.authorizeGeoBrowser('host-only',{...input,clientId:'futurestaff-geo-prod',redirectUri:'https://geo.fsstory.net/oauth/callback/futurestaff'})
 })

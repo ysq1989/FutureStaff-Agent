@@ -1,5 +1,7 @@
 # FutureStaff Agent
 
+新电脑开发请先阅读[换机交接](docs/development-handoff.md)与[文档导航](docs/README.md)。本仓库只保存桌面客户端；后端/Web 快照另存于私有仓库 `ysq1989/FutureStaff-Agent-web`。
+
 ## Agent 3.0 升级（2026-10-11）
 
 开发版本 `3.0.0-rc.1`：从平台已授权的持久智能体开始对话，智能体下保留多次会话、知识与本机工作文件。新 Windows 安装的数据根为 `%LOCALAPPDATA%/FutureStaff Agent/`；已有数据路径保持兼容，不自动迁移。
@@ -63,9 +65,13 @@ If Windows Application Control blocks DSH's native `sharp` module, run the Docke
 | `npm run runner:client` | Start the minimal Local Runner from client environment values |
 | `npm run runner:enroll` | Generate a local device token and server-side digest binding |
 
-## GEO local desktop system
+## GEO cloud workspace and local publishing
 
-GEO is now an owned local System tab at the same level as Douyin acquisition. It reuses DSH login/application grants and authorized models, with an embedded per-member PGlite database. Users need no database server or Docker. See [the GEO desktop module](plugins/fs-geo/README.md) for local/online boundaries and validation commands.
+GEO's System tab uses the current subject's authorized cloud entry. Brand data,
+articles and plans stay in cloud GEO; publishing accounts use device-local browser
+Profiles. Legacy local GEO data is preserved and its default writable routes are
+disabled. The publication SDK is packaged, but the cloud view bridge and actual
+Toutiao article driver remain unconnected. See [the GEO module](plugins/fs-geo/README.md).
 
 ## Structure
 

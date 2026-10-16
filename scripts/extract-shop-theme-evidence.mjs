@@ -1,0 +1,31 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import zlib from 'node:zlib'
+const root='C:/Users/10089/.futurestaff/workspaces/production/6e7db441-c4ea-4f16-8261-9e1a5379b2ff/users/242ab148-8370-4d54-b6bb-da4bbee4a0f3/sessions'
+const directory=fs.readdirSync(root).find(name=>name.includes('aad9e101-edaa-4c37-a26d-113fb19fdb5a'))
+const file=path.join(root,directory,'session-60530850-dc1f-44ee-aedb-fa87de3bcb17/session.jsonl.zstd')
+const bytes=fs.readFileSync(file),chunks=[]
+for(let offset=0;offset<bytes.length;){const frame=zlib.zstdDecompressSync(bytes.subarray(offset),{info:true});if(!frame.engine.bytesWritten)throw Error('Invalid frame');chunks.push(frame.buffer);offset+=frame.engine.bytesWritten}
+const events=Buffer.concat(chunks).toString().split('\n').filter(Boolean).map(line=>JSON.parse(line))
+const results=new Map(events.filter(event=>event.type==='tool/result').map(event=>[event.data.message.source.callId,event.data]))
+const records=[]
+for(const event of events.filter(event=>event.type==='tool/call')){
+ const call=event.data
+ if(!['shop_theme_tools','shop_theme_call','agent_image_tools','agent_image_generate','agent_image_status','shop_theme_asset_from_image'].includes(call.name))continue
+ const args=JSON.parse(call.arguments)
+ const result=results.get(call.callId)
+ const texts=result?.message.content.flatMap(block=>block.content??[]).filter(block=>block.type==='text').map(block=>block.text)??[]
+ let data
+ try{const value=JSON.parse(texts.join('\n'));data=value.structuredContent??value;if(value.isError)data={isError:true,error:value.content?.[0]?.text}}catch{
+  const text=texts.join('\n'),revision=/\\?"revision\\?"\s*:\s*(\d+)/.exec(text),title=/\\?"title\\?"\s*:\s*\\?"([^"\\]+)/.exec(text)
+  data=revision?{revision:Number(revision[1]),...(title?{title:title[1]}:{}),partialOutput:true}:{error:text.slice(0,200)}
+ }
+ const fields=['draftId','revision','title','themeId','status','activated','rollbackRef','activeRevision','previewUrl','valid','imageCount','imageBytes','isError','error','credentialSource','agentVersion','partialOutput']
+ const summary=Object.fromEntries(fields.filter(key=>data?.[key]!==undefined).map(key=>[key,data[key]]))
+ if(data?.activeTheme)summary.activeTheme=data.activeTheme
+ if(Array.isArray(data?.tools))summary.toolCount=data.tools.length
+ records.push({turn:call.turn,step:call.step,tool:args.name??call.name,arguments:call.name==='shop_theme_call'?args.arguments:args,result:summary})
+}
+const destination='D:/项目/crmeb-shop/output/agent-theme-desktop/real-dialogue-evidence.json'
+fs.writeFileSync(destination,JSON.stringify({sessionId:'session-60530850-dc1f-44ee-aedb-fa87de3bcb17',realDesktopDialogue:true,records},null,2))
+console.log(JSON.stringify(records.filter(record=>record.turn===4),null,2))

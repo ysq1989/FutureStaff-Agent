@@ -1,0 +1,6 @@
+{
+  "extends":"./tsconfig.json",
+  "compilerOptions":{"noEmit":false,"declaration":true,"emitDeclarationOnly":true,"allowImportingTsExtensions":false,"outDir":"lib/publisher-types","rootDir":"."},
+  "include":["src/publisher.ts"],
+  "exclude":[]
+}

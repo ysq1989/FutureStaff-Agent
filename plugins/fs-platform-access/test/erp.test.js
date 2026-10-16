@@ -4,6 +4,23 @@ import { ErpService } from '../lib/erp.js'
 import { erpActionBodySchema } from '../lib/erp-host.js'
 
 const identity={tenantId:'00000000-0000-0000-0000-000000000001',userId:'00000000-0000-0000-0000-000000000002',accessToken:'private-desktop',signal:new AbortController().signal}
+test('order forms carry verified draft fields without writing or inventing a price',async()=>{
+ const h=harness(),customer='00000000-0000-0000-0000-000000000003',product='00000000-0000-0000-0000-000000000004'
+ const view=await h.service.form('sales','session-1',undefined,{customer_id:customer,items:[{product_id:product,quantity:200}]})
+ assert.equal(view.data.draft.customer_id,customer)
+ assert.equal(view.data.draft.items[0].quantity,200)
+ assert.equal(view.data.draft.items[0].unit_price,undefined)
+ assert.equal(view.data.partners.some(row=>row.id===customer),true)
+ assert.equal(view.data.items.some(row=>row.id===product),true)
+ assert.equal(h.writes(),0)
+})
+test('draft prefills reject tenant fields, mismatched kinds and invalid quantities before querying',async()=>{
+ const h=harness()
+ for(const draft of [{tenant_id:'foreign'},{supplier_id:'00000000-0000-0000-0000-000000000003'},{items:[{quantity:-1}]},{order_date:'2026-02-30'}]){
+  await assert.rejects(()=>h.service.form('sales','session-1',undefined,draft),/ERP_INPUT_INVALID/)
+ }
+ assert.equal(h.calls.length,0)
+})
 function harness(){
  let allowed=true, writes=0;const calls=[]
  const fetcher=async(url,init={})=>{
@@ -14,8 +31,16 @@ function harness(){
   if(url.includes('/sales-orders/'))return Response.json({id:'00000000-0000-0000-0000-000000000005',status:'待确认',notes:'中文草稿'})
   return Response.json(url.includes('/customers/')?{id:'00000000-0000-0000-0000-000000000003',name:'中文客户'}:url.includes('/products/')?{id:'00000000-0000-0000-0000-000000000004',name:'中文产品'}:[{id:'order-1',notes:'中文草稿'}])
  }
- return {service:new ErpService('https://platform.fsstory.net',async()=>identity,fetcher),calls,setAllowed:v=>{allowed=v},writes:()=>writes}
+ return {service:new ErpService('https://platform.fsstory.net',async()=>identity,fetcher),fetcher,calls,setAllowed:v=>{allowed=v},writes:()=>writes}
 }
+test('suggested records must remain accessible under the current ERP grant',async()=>{
+ const h=harness(),fetcher=async(url,init)=>url.includes('/products/')?Response.json({detail:'denied'},{status:403}):h.fetcher(url,init)
+ const service=new ErpService('https://platform.fsstory.net',async()=>identity,fetcher)
+ await assert.rejects(()=>service.form('sales','session-1',undefined,{items:[{product_id:'00000000-0000-0000-0000-000000000004',quantity:1}]}),/ERP_PERMISSION_DENIED/)
+ assert.equal(h.writes(),0)
+ h.setAllowed(false)
+ await assert.rejects(()=>h.service.form('sales','session-1'),/ERP_PERMISSION_DENIED/)
+})
 test('query returns Chinese data and keeps both credentials out of results',async()=>{
  const h=harness();const result=await h.service.query({resource:'sales-orders'},'session-1')
  assert.equal(result.kind,'table');assert.match(JSON.stringify(result),/中文草稿/)

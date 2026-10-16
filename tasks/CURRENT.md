@@ -1,10 +1,21 @@
 # Current task
 
-Agent 3.0 DEV release: see tasks/agent-v3-dev-release.md and tasks/persistent-agents-v3.md.
-User authorized scoped commit/push, DEV API deployment and local DEV client update on 2026-10-11.
+## 2026-10-16 换机源码交接
 
-## Preserved earlier context
+用户已授权保存后端/Web 与桌面客户端到独立 GitHub 仓库，并提交、推送现有开发成果。本仓库继续使用 `ysq1989/FutureStaff-Agent` 的 main；后端/Web 使用独立私有仓库 `ysq1989/FutureStaff-Agent-web`。本次不执行部署、发布、安装版更新、真实业务操作或数据迁移。范围、排除项和验证见 `docs/development-handoff.md`。
 
+换机文档、源码检查与快照整理已完成；验证记录见 `tasks/DONE.md`。完整检查仍有已记录失败，本次不将历史功能任务重新标记为全部验收完成。推送结果以远端 main 提交核对为准。
+
+下列任务上下文原样保留，其旧提交/推送限制由本次换机授权替代；功能发布与业务验收限制仍然有效。
+
+Agent 3.0 persistent-agent upgrade: see [task](persistent-agents-v3.md),
+[specification](../docs/specs/persistent-agents-v3.md), and
+[acceptance](../docs/specs/persistent-agents-v3-acceptance.md). Source implementation
+and local feature checks are complete; Stable/Beta checks and the source variant
+gate now pass. Publication and real-account acceptance remain separate. No commit, push, deployment, installed-app update or real-data migration
+is authorized.
+
+## Preserved GEO task context
 
 GEO local desktop migration: see tasks/geo-local-desktop.md and
 docs/specs/geo-local-desktop-migration.md. User confirmed DSH login/models and

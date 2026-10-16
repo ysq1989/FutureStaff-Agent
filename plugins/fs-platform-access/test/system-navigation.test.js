@@ -8,3 +8,10 @@ test('native authorization resolves only business IDs from current server discov
   for(const id of ['agent','wecom_album','platform','https://evil.invalid','unknown'])assert.equal(authorizedSystemHome(snapshot,id),null)
   for(const patch of [{phase:'signed_out'},{activeTenantId:'b'},{applications:[{...app,capabilities:[]}]},{applications:[{...app,baseUrl:'http://127.0.0.1:43120'}]}])assert.equal(authorizedSystemHome({...snapshot,...patch},'immigration'),null)
 })
+
+test('Web navigation requires a current same-subject Website grant',()=>{
+  const web={...app,appId:'web',baseUrl:'https://web.fsstory.net',deepLinks:{home:'/'},capabilities:['web.manage']}
+  const ready={...snapshot,applications:[web]}
+  assert.equal(authorizedSystemHome(ready,'web'),'https://web.fsstory.net/')
+  for(const patch of [{phase:'signed_out'},{activeTenantId:'b'},{applications:[]},{applications:[{...web,capabilities:[]}]}])assert.equal(authorizedSystemHome({...ready,...patch},'web'),null)
+})

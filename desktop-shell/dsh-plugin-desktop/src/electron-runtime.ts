@@ -290,6 +290,11 @@ export class ElectronDesktopRuntime implements DesktopRuntime {
     this.generation?.show()
   }
 
+  async requestSystem(appId:string,path:string,init:RequestInit):Promise<Response> {
+    if (!this.generation) throw Error('SYSTEM_VIEW_UNAVAILABLE')
+    return this.generation.requestSystem(appId,path,init)
+  }
+
   /** @inheritdoc */
   notifyAttention(notification: DesktopNotification): void {
     this.generation?.notifyAttention(notification)

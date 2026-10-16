@@ -1,0 +1,17 @@
+# Desktop login contract repair and duplicate heading
+
+2026-10-13. User requests removal of the redundant signed-out FutureStaff Agent heading and reports login failure. Prior authorization covers updating the current installed client while preserving account/session/data. High Risk client input-validation repair; no Platform deployment, database or credential migration, commit or push.
+
+Live credential-free response-shape probe confirms refresh/profile/tenant/model envelopes are valid, but `/desktop/v1/apps` includes a Website management extension (canManage, applicationId, permissions, mcpUrl, tokenExchangePath) that the desktop strict decoder rejects. Reproduce through a failing adapter test, validate the complete known Website extension under v0.1.1, enforce same-origin HTTPS MCP and fixed token exchange path, preserve tenant/capability checks, and project only the existing desktop application fields. Unknown fields and the immutable Mock remain strict. Remove the redundant heading only from the ordinary signed-out view, retaining accessible section naming and meaningful loading/error headings.
+
+Build from the previous verified 3.0.3 login-r2 isolated candidate plus the two scoped source edits. Preserve unrelated source/runtime work. Back up exact product libraries, update matching installed/bundled plugin files, refresh affected bundled manifest hashes without changing internal Profile contract 0.1.0, remove the temporary shape-only probe, and restart normally after actual authenticated acceptance. Evidence under D:/项目/.codex-build/agent-login-fix-20261013/.
+
+Status: completed source repair and current-client installation; authenticated runtime acceptance passed.
+
+## Final evidence
+
+- Failing test reproduced rejection of the real Website extension. Original workspace checks: typecheck/build and 207 tests passed. Scoped previous-release candidate: typecheck/build and 191 tests passed, including 10 Website extension cases. Unknown keys, malformed flags/identity, incomplete extensions, foreign URL/credentials, conflicting permissions and cross-tenant records remain rejected.
+- Updated six files in each of bundled, Alpha and active production product libraries. Exact originals backed up under the evidence directory. Removed temporary response-shape probe and verified the bundled resource manifest hashes with unchanged Profile contract 0.1.0. Native executable version remains 3.0.3; this is a scoped local plugin hotfix, not a newly exported installer or a server release.
+- 105 persistent configuration/data files were byte-identical during installation. Current active Profile, stored account/password and historical business data retained.
+- Real installed client automatically restored ready/HTTP 200, matching both user and tenant in the original fixed production workspace; eight applications and one model loaded. Authorized Agent catalog returned HTTP 200 with 14 agents; four historical session rows visible; no login overlay or horizontal overflow. No test messages, business submissions or authorization changes made. Signed-out view has one canonical wordmark, no repeated h2, and an accessible section name. Installed api/view/client hashes match the scoped candidate.
+- Receipts: install-receipt.json, authenticated-acceptance.json, workspace-accepted.png and candidate-tests-final.log under D:/项目/.codex-build/agent-login-fix-20261013/. Normal restart removes temporary remote-debugging flags. No commit, push, update-feed publication, migration or credential rewrite.

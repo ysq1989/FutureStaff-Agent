@@ -19,10 +19,35 @@ test('data root is outside install directory and members/environments stay separ
   assert.throws(()=>memberDataDirectory({...identity,tenantId:'../foreign'},root))
 })
 
+test('platform skill bundles are discoverable inside only their owning agent workspace',async()=>{
+ const root=await mkdtemp(path.join(os.tmpdir(),'fs-skill-'))
+ try{
+  const store=new AgentWorkspaceStore(root,identity)
+  const skill={path:'skills/fashion-launch/SKILL.md',content:'---\nname: fashion-launch\ndescription: Fashion\n---\nOnly approved facts'}
+  const directory=await store.materialize({...snapshot,files:[skill]},new AbortController().signal)
+  assert.equal(await readFile(path.join(directory,'workspace','.agents',skill.path),'utf8'),skill.content)
+  await store.materialize({...snapshot,version:'b'.repeat(64),files:[]},new AbortController().signal)
+  await assert.rejects(readFile(path.join(directory,'workspace','.agents',skill.path),'utf8'),{code:'ENOENT'})
+ }finally{await rm(root,{recursive:true,force:true})}
+})
+
 test('remote files cannot write outside the controlled snapshot or include scripts',()=>{
   for(const file of ['../soul.md','/soul.md','skills/a/../../x.md','skills/a/run.py','credentials.json','skills/CON.md','skills/a.md:secret','skills/a./x.md']){
     assert.throws(()=>decodeAgentSnapshot({...snapshot,files:[{path:file,content:'x'}]}))
   }
+})
+
+test('native skill reconciliation preserves local edits instead of replacing them',async()=>{
+ const root=await mkdtemp(path.join(os.tmpdir(),'fs-skill-conflict-'))
+ try{
+  const store=new AgentWorkspaceStore(root,identity),signal=new AbortController().signal
+  const skill={path:'skills/fashion-launch/SKILL.md',content:'platform content'}
+  const directory=await store.materialize({...snapshot,files:[skill]},signal)
+  const file=path.join(directory,'workspace','.agents',skill.path)
+  await writeFile(file,'human edit')
+  await assert.rejects(store.materialize({...snapshot,version:'b'.repeat(64),files:[{...skill,content:'updated platform'}]},signal),/AGENT_SKILL_LOCAL_CONFLICT/)
+  assert.equal(await readFile(file,'utf8'),'human edit')
+ }finally{await rm(root,{recursive:true,force:true})}
 })
 
 test('agent selection is idempotent, preserves user work, and sessions cannot switch agents',async()=>{

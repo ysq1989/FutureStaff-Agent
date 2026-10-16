@@ -1,4 +1,4 @@
-import { futureStaffLogoUrl, futureStaffAgentWordmarkPaths } from './brand.js'
+import { futureStaffAgentWordmarkPaths } from './brand.js'
 import type { PlatformAccessSnapshot } from './controller.js'
 import type { PasswordLoginInput } from './contracts.js'
 import type { LoginHints } from './login-preferences.js'
@@ -35,14 +35,16 @@ function stateShell(phase: string, title: string, body: string, options: { alert
     : options.busy
       ? ' role="status" aria-live="polite" aria-busy="true"'
       : ''
-  return `<section class="fs-panel fs-state" data-state="${phase}" aria-labelledby="futurestaff-access-title"${semantics}><img class="fs-state-mark fs-brand-logo" src="${futureStaffLogoUrl}" alt="FutureStaff"><div class="fs-state-copy"><svg viewBox="0 0 357 68" role="img" aria-label="FutureStaff.Agent" style="width:250px;height:auto;max-width:100%">${futureStaffAgentWordmarkPaths}</svg><h2 id="futurestaff-access-title">${title}</h2>${body}</div></section>`
+  const label = title ? 'aria-labelledby="futurestaff-access-title"' : 'aria-label="FutureStaff Agent"'
+  const heading = title ? `<h2 id="futurestaff-access-title">${title}</h2>` : ''
+  return `<section class="fs-panel fs-state" data-state="${phase}" ${label}${semantics}><div class="fs-state-copy"><svg viewBox="0 0 357 68" role="img" aria-label="FutureStaff.Agent" style="width:250px;height:auto;max-width:100%">${futureStaffAgentWordmarkPaths}</svg>${heading}${body}</div></section>`
 }
 
 export function renderPlatformAccessView(state: PlatformAccessSnapshot, hints: LoginHints = {}): string {
   const configuredModels = state.models ?? []
   if (state.phase === 'signed_out') {
     if (state.simulated) return stateShell('signed_out', '连接你的工作空间', `<div class="fs-actions">${actionButton('login', '模拟登录', 'primary')}</div>`)
-    return stateShell('signed_out', 'FutureStaff Agent', loginForm())
+    return stateShell('signed_out', '', loginForm())
   }
   if (state.phase === 'loading') {
     return stateShell('loading', '正在登录', '<p class="fs-lead">正在读取账号、模型和应用授权…</p><div class="fs-skeletons" data-skeleton="true" aria-hidden="true"><span></span><span></span><span></span></div>', { busy: true })
