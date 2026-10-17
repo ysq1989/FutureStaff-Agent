@@ -4,7 +4,7 @@
 
 当前源码版本：`3.0.7`。安装版 Profile 启动修复与发布状态见[修复记录](tasks/profile-startup-hotfix-307.md)。下方 3.0 升级说明保留为历史设计背景。
 
-2026-10-17：3.0.6 自动升级推荐因安装版启动缺陷已撤回，正在验证 3.0.7 修复包，保留 3.0.5 回退包，见上述修复记录。本机后续开发目录为 `D:/项目/FutureStaff/FutureStaff Agent`；安装依赖后运行 `npm run desktop:dev`，开发 Profile 和桌面数据分别保存在该目录 `.dsh/desktop-development`、`.dsh/desktop-dev-user-data`。
+2026-10-17：3.0.7 修复包已发布至现有签名升级源，实际安装版首启到登录页及公网完整下载校验通过，保留 3.0.5 回退包，见上述修复记录。本机后续开发目录为 `D:/项目/FutureStaff/FutureStaff Agent`；安装依赖后运行 `npm run desktop:dev`，开发 Profile 和桌面数据分别保存在该目录 `.dsh/desktop-development`、`.dsh/desktop-dev-user-data`。
 
 ## Agent 3.0 升级（2026-10-11）
 

@@ -40,5 +40,42 @@ original signed feed, independently verified at public HTTPS (SHA-256
 `930f02bc02098ca94783b644db7261314bc07f5b6ef4385a420694746a6c93d3`).
 Versioned installers remain unchanged. Private signing key stays outside source.
 
-Status: source checks complete; 3.0.7 installer build, actual packaged login and
-signed publication still pending. Local evidence: `.local-checks/profile-fix*`.
+## Completed delivery, 2026-10-17
+
+- Runtime build source: main `8176a516ec`, pushed to origin. Windows installer gate:
+  191 tests passed, type checks and runtime closure passed; afterPack accepted the
+  actual 301-file Profile with the startup validator.
+- Ran `dist/win-unpacked/FutureStaff Agent.exe` with a fresh isolated Harness and
+  user-data directory. Observed the product login page using Computer Use; no
+  recovery page or startup error. No account login or business action was performed.
+  The test process was closed; the current machine's installed app was untouched.
+- Extracted the final NSIS EXE: `resources/app.asar` SHA-256
+  `f8f33266d023e0f25afd3fc9e525be93d68aa92fe1603923c6a674d94594002a`,
+  Profile manifest SHA-256
+  `5e887111d857b0e4f19ddf70d3552162e9d110551fda85a84074986c31e0ba2c`;
+  both match the actually tested packaged client. Actual packaged resources also
+  pass the 3.0.6 unmodified/customized Profile and session-preservation probes.
+- Installer: [FutureStaff-Agent-3.0.7-x64-Setup.exe](https://fsstory.net/desktop-updates/FutureStaff-Agent-3.0.7-x64-Setup.exe),
+  139,961,130 bytes, SHA-256
+  `f87c30688725e47e54ecb519d1325ab29585f7689c8a965569f27135f155c907`.
+- Signed using the existing external Ed25519 key, retaining the client's pinned
+  public key and `confirmed-install` delivery. Publication rehearsal verified
+  changed-feed rejection, lock cleanup, old-feed backup and successful publication.
+- PROD bundle: `/opt/futurestaff/prod/desktop-update-bundles/3.0.7-signed-feed-20261017`.
+  Independent operator trust and compare-and-swap on the restored prior digest
+  guarded publication under the existing lock. Existing version URLs stayed immutable.
+  Feed SHA-256: `4581accbef7811768a6c85627d1ac04915bfda64b42bd9510b95d9f385ac9803`.
+- Actual client `checkFutureStaffUpdate` verified HTTPS signature and version 3.0.7,
+  with 3.0.5 rollback. Both public EXEs were downloaded completely and checked using
+  the client byte validator. Feed is `no-store`, installers are immutable; `trust.json`,
+  `READY` and `previous-stable.json` public paths return 404. The unchanged 3.0.5
+  rollback digest is `85378732a812c30ab615ff67e2d3de03bb4b8b64126524c1deb469ce9b9d0297`.
+
+Recovery instructions for the other computer: close Agent, download 3.0.7 and
+install over the existing application directory. Keep Profile/session/data
+directories; no uninstall or data cleanup is required. Real account operation on
+that computer remains to be observed by the user.
+
+Status: repair, actual packaged startup validation and PROD publication complete.
+Local evidence: `.local-checks/profile-fix*`, `.local-checks/v307-live-verification.json`,
+`.local-checks/v307-bundle-result.json`. Private keys and raw runtime data are not committed.
