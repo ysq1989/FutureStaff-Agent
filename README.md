@@ -2,9 +2,9 @@
 
 新电脑开发请先阅读[换机交接](docs/development-handoff.md)与[文档导航](docs/README.md)。本仓库只保存桌面客户端；后端/Web 快照另存于私有仓库 `ysq1989/FutureStaff-Agent-web`。
 
-当前源码版本：`3.0.6`。本次测试修复和 PROD 发布状态见[交付记录](tasks/ci-prod-release-20261016.md)。下方 3.0 升级说明保留为历史设计背景。
+当前源码版本：`3.0.7`。安装版 Profile 启动修复与发布状态见[修复记录](tasks/profile-startup-hotfix-307.md)。下方 3.0 升级说明保留为历史设计背景。
 
-2026-10-17：软件内签名升级源已更新至 3.0.6，保留 3.0.5 回退包，见[升级源发布记录](tasks/in-app-update-306-20261016.md)。本机后续开发目录为 `D:/项目/FutureStaff/FutureStaff Agent`；安装依赖后运行 `npm run desktop:dev`，开发 Profile 和桌面数据分别保存在该目录 `.dsh/desktop-development`、`.dsh/desktop-dev-user-data`。
+2026-10-17：3.0.6 自动升级推荐因安装版启动缺陷已撤回，正在验证 3.0.7 修复包，保留 3.0.5 回退包，见上述修复记录。本机后续开发目录为 `D:/项目/FutureStaff/FutureStaff Agent`；安装依赖后运行 `npm run desktop:dev`，开发 Profile 和桌面数据分别保存在该目录 `.dsh/desktop-development`、`.dsh/desktop-dev-user-data`。
 
 ## Agent 3.0 升级（2026-10-11）
 

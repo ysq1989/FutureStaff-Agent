@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, symlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -7,10 +7,12 @@ import {
   applyBundledFutureStaffBootstrapIdentity,
   bundledFutureStaffAutomaticSetup,
   installBundledFutureStaffProfile,
+  MAX_PROFILE_FILES,
+  validateBundledFutureStaffProfile,
 } from '../src/futurestaff-profile.ts'
 import { readDesktopProfileState } from '../src/profile-manager.ts'
 
-function fixture() {
+function fixture(fileCount = 0) {
   const root = mkdtempSync(join(tmpdir(), 'futurestaff-bundled-profile-'))
   const resourcesPath = join(root, 'resources')
   const source = join(resourcesPath, 'futurestaff-profile', 'profiles', 'futurestaff-alpha')
@@ -29,6 +31,9 @@ function fixture() {
     'node_modules/.modules.yaml': 'nodeLinker: hoisted\npackageManager: pnpm@11.8.0\nvirtualStoreDirMaxLength: 60\n',
   }
   const hashes: Record<string, string> = {}
+  for (let index = Object.keys(files).length; index < fileCount; index++) {
+    files[`module-${index}.js`] = `export const value = ${index}\n`
+  }
   for (const [name, contents] of Object.entries(files)) {
     writeFileSync(join(source, name), contents)
     hashes[name] = createHash('sha256').update(contents).digest('hex')
@@ -44,6 +49,42 @@ function fixture() {
 }
 
 describe('bundled FutureStaff Profile', () => {
+  it('installs the 301-file Profile size shipped by 3.0.6 without touching existing session data', () => {
+    const value = fixture(301)
+    try {
+      mkdirSync(join(value.homeDir, 'sessions'), { recursive: true })
+      const session = join(value.homeDir, 'sessions', 'keep.jsonl')
+      writeFileSync(session, 'private session sentinel')
+      expect(validateBundledFutureStaffProfile(value.source)).toBe(301)
+      expect(installBundledFutureStaffProfile(value)).toBe('installed')
+      expect(readFileSync(session, 'utf8')).toBe('private session sentinel')
+    } finally { rmSync(value.root, { recursive: true, force: true }) }
+  })
+
+  it('still rejects inventory overflow before any user state is written', () => {
+    const value = fixture()
+    try {
+      const file = join(value.source, 'release-manifest.json')
+      const manifest = JSON.parse(readFileSync(file, 'utf8'))
+      manifest.files = Object.fromEntries(Array.from({ length: MAX_PROFILE_FILES + 1 }, (_, index) => [`module-${index}.js`, 'a'.repeat(64)]))
+      writeFileSync(file, JSON.stringify(manifest))
+      expect(() => installBundledFutureStaffProfile(value)).toThrow('file inventory is invalid')
+      expect(existsSync(value.homeDir)).toBe(false)
+    } finally { rmSync(value.root, { recursive: true, force: true }) }
+  })
+
+  it.each(['../outside.js', '/outside.js', 'module.js'])('rejects invalid inventory path or digest: %s', name => {
+    const value = fixture()
+    try {
+      const file = join(value.source, 'release-manifest.json')
+      const manifest = JSON.parse(readFileSync(file, 'utf8'))
+      manifest.files[name] = name === 'module.js' ? 'invalid digest' : 'a'.repeat(64)
+      writeFileSync(file, JSON.stringify(manifest))
+      expect(() => validateBundledFutureStaffProfile(value.source)).toThrow('file inventory is invalid')
+      expect(existsSync(value.homeDir)).toBe(false)
+    } finally { rmSync(value.root, { recursive: true, force: true }) }
+  })
+
   it.each(['valid', 'custom', 'previous-release'] as const)('upgrades audited workspace Host and browser code together: %s', mode => {
     const value = fixture()
     try {

@@ -107,9 +107,18 @@ describe('packaged desktop runtime verification', () => {
       runtimeContext,
       () => { calls.push('static') },
       async (unpackedRoot) => { calls.push(unpackedRoot) },
+      source => { calls.push(source); return 301 },
     )
 
-    expect(calls).toEqual(['static', resolvePackagedUnpackedRoot(runtimeContext)])
+    expect(calls).toEqual(['static', join('/build', 'resources', 'futurestaff-profile', 'profiles', 'futurestaff-alpha'), resolvePackagedUnpackedRoot(runtimeContext)])
+  })
+
+  it('rejects runtime-incompatible Profile resources during afterPack', async () => {
+    const smoke = vi.fn(async () => {})
+    await expect(afterPack(context('/build', 'win32'), () => {}, smoke,
+      () => { throw new Error('FutureStaff release Profile file inventory is invalid') }))
+      .rejects.toThrow('file inventory is invalid')
+    expect(smoke).not.toHaveBeenCalled()
   })
 
   it('tracks the ConPTY-only native surface shipped by node-pty 1.2', () => {

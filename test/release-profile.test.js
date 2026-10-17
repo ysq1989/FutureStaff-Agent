@@ -5,6 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { stageReleaseProfile, verifyReleaseProfile } from '../scripts/stage-release-profile.mjs'
+import { installBundledFutureStaffProfile } from '../desktop-shell/dsh-plugin-desktop/src/futurestaff-profile.ts'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -46,6 +47,17 @@ test('stages a relocatable built-only FutureStaff Profile', async () => {
       '@futurestaff/fs-geo': '0.1.0',
     })
     assert.ok(Object.values(profile.dependencies).every(value => !value.startsWith('file:')))
+    // Exercise the packaged-only startup path on the actual staged product,
+    // rather than accepting a builder-only inventory that startup rejects.
+    const resourcesPath = path.join(temporary, 'startup-resources')
+    const { cp, mkdir } = await import('node:fs/promises')
+    await mkdir(resourcesPath, { recursive: true })
+    await cp(path.join(temporary, 'profiles'), path.join(resourcesPath, 'futurestaff-profile', 'profiles'), { recursive: true })
+    assert.equal(installBundledFutureStaffProfile({
+      resourcesPath,
+      homeDir: path.join(temporary, 'startup-home'),
+      selectionStatePath: path.join(temporary, 'startup-state', 'selection.json'),
+    }), 'installed')
   } finally {
     await rm(temporary, { recursive: true, force: true })
   }

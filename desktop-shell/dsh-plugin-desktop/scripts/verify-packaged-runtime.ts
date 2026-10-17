@@ -7,6 +7,7 @@ import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { listPackage } from '@electron/asar'
 import AdmZip from 'adm-zip'
+import { validateBundledFutureStaffProfile } from '../src/futurestaff-profile.ts'
 import {
   FORBIDDEN_MACOS_UNIVERSAL_ENTRIES,
   MACOS_UNIVERSAL_NATIVE_ENTRIES,
@@ -436,8 +437,10 @@ export async function afterPack(
   context: PackagedRuntimeContext,
   verify: typeof verifyPackagedRuntime = verifyPackagedRuntime,
   smoke: PackagedDiagnosticWorkerSmoke = smokePackagedDiagnosticWorker,
+  profile: (source: string) => number = validateBundledFutureStaffProfile,
 ): Promise<void> {
   verify(context)
+  profile(join(dirname(resolvePackagedAsarPath(context)), 'futurestaff-profile', 'profiles', 'futurestaff-alpha'))
   await smoke(resolvePackagedUnpackedRoot(context))
 }
 

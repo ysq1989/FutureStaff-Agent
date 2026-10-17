@@ -3,6 +3,7 @@ import { cp, lstat, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/prom
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
+import { validateBundledFutureStaffProfile } from '../desktop-shell/dsh-plugin-desktop/src/futurestaff-profile.ts'
 
 const scriptRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const defaultOutput = path.join(scriptRoot, 'dist', 'desktop-profile')
@@ -173,6 +174,7 @@ export async function stageReleaseProfile(options = {}) {
   }
   await writeFile(path.join(target, 'release-manifest.json'), `${JSON.stringify(releaseManifest, null, 2)}\n`)
   await verifyReleaseProfile(outputRoot, sourceRoot)
+  validateBundledFutureStaffProfile(target)
   return { outputRoot, target, releaseManifest }
 }
 

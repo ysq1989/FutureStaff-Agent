@@ -23,7 +23,10 @@ const EXPECTED_SCHEMA_VERSION = 1
 const EXPECTED_PRODUCT_VERSION = '0.1.0'
 const EXPECTED_DSH_VERSION = '0.1.2-rc.1'
 const MAX_MANIFEST_BYTES = 1024 * 1024
-const MAX_PROFILE_FILES = 256
+// Product modules now ship more than 256 files. Keep a bounded whole-Profile
+// budget independent of the smaller per-workspace upgrade-code inventories.
+export const MAX_PROFILE_FILES = 1024
+const MAX_WORKSPACE_FILES = 256
 
 interface ReleaseManifest {
   readonly schemaVersion: number
@@ -124,7 +127,7 @@ function readManifest(source: string): ReleaseManifest {
   if (value.workspacePreviousInventories !== undefined && (!Array.isArray(value.workspacePreviousInventories)
     || value.workspacePreviousInventories.length > 16
     || value.workspacePreviousInventories.some(files => files === null || typeof files !== 'object'
-      || Array.isArray(files) || Object.keys(files).length > MAX_PROFILE_FILES
+      || Array.isArray(files) || Object.keys(files).length > MAX_WORKSPACE_FILES
       || Object.entries(files).some(([name, digest]) =>
         !name.startsWith('node_modules/@futurestaff/fs-platform-access/lib/')
         || !safeRelativePath(name) || typeof digest !== 'string' || !/^[0-9a-f]{64}$/u.test(digest))))) {
@@ -139,7 +142,7 @@ function readManifest(source: string): ReleaseManifest {
   }
   if (entries.length === 0 || entries.length > MAX_PROFILE_FILES
     || entries.some(([name, digest]) => !safeRelativePath(name) || !/^[0-9a-f]{64}$/u.test(digest))) {
-    throw new Error('FutureStaff release Profile file inventory is invalid')
+    throw new Error(`FutureStaff release Profile file inventory is invalid (${entries.length} files; limit ${MAX_PROFILE_FILES})`)
   }
   return value as ReleaseManifest
 }
@@ -194,6 +197,11 @@ function verifySource(source: string): ReleaseManifest {
     }
   }
   return manifest
+}
+
+/** Run the exact startup validator without touching any user's Profile or state. */
+export function validateBundledFutureStaffProfile(source: string): number {
+  return Object.keys(verifySource(source).files).length
 }
 
 function isRepairableLegacyProfile(target: string, current: ReleaseManifest): boolean {
